@@ -32,5 +32,5 @@ SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
 TabWidth: 4
-UseTab: ForIndentation
+UseTab: Never
 AlignConsecutiveAssignments: {}
