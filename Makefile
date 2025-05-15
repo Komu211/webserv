@@ -1,47 +1,45 @@
 include srcs.mk
 
 
-NAME		=	webserv
+NAME			=	webserv
 
-CC			=	c++
-CFLAGS		=	-Wall -Wextra -Werror -std=c++17
-DEBUG_FLAGS	=	-g -fsanitize=address
-RM			=	rm -f
-INCLUDES	=	-Iincludes
+CXX				=	c++
+CXXFLAGS		=	-Wall -Wextra -Werror -std=c++17 -MMD -MP
+DEBUG_FLAGS		=	-g -fsanitize=address
+RM				=	rm -f
+DEPENDS			=	$(OBJS:.o=.d)
 
-SRC_DIR		=	src
-OBJ_DIR		=	obj
+SRC_DIR			=	src
+OBJ_DIR			=	obj
 
-OBJS 		= $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(SRCS))
+OBJS 			= $(patsubst %.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 
-.DEFAULT_GOAL = all
-
+.DEFAULT_GOAL	= all
 
 all: $(NAME)
 
+-include $(DEPENDS)
+
 $(NAME): $(OBJS)
-	@$(CC) $(CFLAGS) -o $(NAME) $(OBJS)
+	@$(CXX) $(CXXFLAGS) -o $(NAME) $(OBJS)
 	@echo "Compiling $(NAME) project"
 
 debug: $(OBJS)
-	@$(CC) $(DEBUG_FLAGS) $(CFLAGS) -o $(NAME) $(OBJS)
+	@$(CXX) $(DEBUG_FLAGS) $(CXXFLAGS) -o $(NAME) $(OBJS)
 	@echo "Compiling $(NAME) project with debug flags"
 
 
-$(OBJ_DIR)/%.o: %.cpp | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: %.cpp Makefile | $(OBJ_DIR)
 	@echo "Compiling $<"
-	@$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
-
+	@$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
 
 $(OBJ_DIR):
 	@mkdir -p $(OBJ_DIR)
 	@echo "Creating folder for object files"
 
-
 clean:
 	@echo "Deleting $(NAME) objects"
 	@rm -rf $(OBJ_DIR)
-
 
 fclean: clean
 	@$(RM) $(NAME)
