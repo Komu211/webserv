@@ -1,7 +1,5 @@
 #include "ServerConfig.hpp"
 
-#include <string>
-
 ServerConfig::ServerConfig()
 {
     _host = "localhost";
@@ -14,6 +12,11 @@ ServerConfig::ServerConfig()
 void ServerConfig::setHost(const std::string &host)
 {
     _host = host;
+}
+
+int ServerConfig::getPort() const
+{
+    return _port;
 }
 
 void ServerConfig::setIndex(const std::string &index)
