@@ -4,6 +4,7 @@ SRCS		=	main.cpp \
 				Server.cpp \
 				ServerConfig.cpp \
 				Socket.cpp \
+				ActiveSockets.cpp
 
 
 INCLUDES	=	-Iincludes \

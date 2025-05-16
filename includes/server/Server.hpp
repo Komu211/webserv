@@ -1,21 +1,24 @@
 #pragma once
 
+#include "ActiveSockets.hpp"
 #include "ServerConfig.hpp"
 #include "Socket.hpp"
 #include <chrono>
 #include <iostream>
+#include <memory>
+#include <poll.h>
+#include <stdexcept>
 #include <string>
 #include <thread>
-#include <stdexcept>
-#include <vector>
-#include <memory>
 #include <unordered_set>
+#include <vector>
 
 class Server
 {
 private:
-    std::vector<ServerConfig> _configs;
+    std::vector<ServerConfig>                   _configs;
     std::unordered_set<std::unique_ptr<Socket>> _sockets;
+    ActiveSockets                               _activeSockets;
 
 public:
     explicit Server(std::vector<ServerConfig> configs);
@@ -29,5 +32,6 @@ public:
     [[nodiscard]] std::vector<ServerConfig> get_configs() const;
     void set_configs(const std::vector<ServerConfig> &configs);
 
+    void fillActiveSockets();
     void run();
 };

@@ -34,6 +34,16 @@ void Server::set_configs(const std::vector<ServerConfig> &configs)
 {
     _configs = configs;
 }
+
+void Server::fillActiveSockets()
+{
+    for (const auto &sockPtr : _sockets)
+    {
+        int fd = sockPtr->get_fd();
+        _activeSockets.addSocket(fd, POLLIN);
+    }
+}
+
 void Server::run()
 {
     std::cout << "Server is running..." << std::endl;
@@ -49,12 +59,58 @@ void Server::run()
          * 6. Close finished and timeout connections
          */
 
-        std::cout << "Waiting for requests on sockets: " << std::endl;
-        for (const auto &sockPtr : _sockets)
+        // std::cout << "Waiting for requests on sockets: " << std::endl;
+        // for (const auto &sockPtr : _sockets)
+        // {
+        //     std::cout << *sockPtr << std::endl;
+        // }
+        const int pollResult = poll(_activeSockets.data(), _activeSockets.size(), 2000);
+        if (pollResult < 0)
         {
-            std::cout << *sockPtr << std::endl;
+            std::cerr << "Poll error: " << strerror(errno) << std::endl;
+            continue;
         }
+        if (pollResult == 0)
+        {
+            std::cout << "No events occurred within the timeout." << std::endl;
+            continue;
+        }
+        for (auto &pollFd : _activeSockets.getPollFDs())
+        {
+            if (pollFd.revents & POLLIN)
+            {
+                if (pollFd.fd == 3)
+                {
+                    int clientFd = accept(pollFd.fd, nullptr, nullptr);
+                    if (clientFd >= 0)
+                    {
+                        std::cout << "Accepted new connection: " << clientFd << std::endl;
+                        char buffer[1024];
+                        ssize_t bytesRead = read(clientFd, buffer, sizeof(buffer) - 1);
+                        if (bytesRead > 0)
+                        {
+                            buffer[bytesRead] = '\0';
+                            std::cout << "Received request:\n"
+                                      << buffer << std::endl;
+                        }
+
+                        std::string response = "HTTP/1.1 200 OK\r\n"
+                                               "Content-Type: text/plain\r\n"
+                                               "Content-Length: 13\r\n"
+                                               "\r\n"
+                                               "Hello, world!";
+                        send(clientFd, response.c_str(), response.size(), 0);
+                        close(clientFd);
+                    }
+                }
+
+                else
+                {
+                    std::cout << "Client socket ready to read: " << pollFd.fd << std::endl;
+                }
+            }
+        }
+
         // Sleep for 10 seconds
-        std::this_thread::sleep_for(std::chrono::microseconds(10000000));
     }
 }
