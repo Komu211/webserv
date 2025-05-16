@@ -4,59 +4,54 @@
 
 ServerConfig::ServerConfig()
 {
-	_host = "localhost";
-	_index = "index.html";
-	_root = ".";
-	_serverNames = {"localhost"};
-}
-
-ServerConfig::ServerConfig(const std::string &configFile)
-{
-	throw std::runtime_error("Not implemented");
+    _host = "localhost";
+    _port = 8080;
+    _index = "index.html";
+    _root = ".";
+    _serverNames = {"localhost"};
 }
 
 void ServerConfig::setHost(const std::string &host)
 {
-	_host = host;
+    _host = host;
 }
 
 void ServerConfig::setIndex(const std::string &index)
 {
-	_index = index;
+    _index = index;
 }
 
 void ServerConfig::setRoot(const std::string &root)
 {
-	_root = root;
+    _root = root;
 }
 
 void ServerConfig::setServerNames(const std::vector<std::string> &serverNames)
 {
-	_serverNames = serverNames;
+    _serverNames = serverNames;
 }
 
 void ServerConfig::addServerName(const std::string &serverName)
 {
-	_serverNames.push_back(serverName);
+    _serverNames.push_back(serverName);
 }
-
 
 std::string ServerConfig::getHost() const
 {
-	return _host;
+    return _host;
 }
 
 std::string ServerConfig::getIndex() const
 {
-	return _index;
+    return _index;
 }
 
 std::string ServerConfig::getRoot() const
 {
-	return _root;
+    return _root;
 }
 
 std::vector<std::string> ServerConfig::getServerNames() const
 {
-	return _serverNames;
+    return _serverNames;
 }

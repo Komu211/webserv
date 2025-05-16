@@ -5,7 +5,8 @@
 int main()
 {
 	std::cout << "Hello from the wondrous webserv!" << std::endl;
-	Server server;
+	ServerConfig config;
+	Server server({config});
 	server.run();
 	return (0);
 }

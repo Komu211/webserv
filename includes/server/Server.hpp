@@ -1,22 +1,24 @@
 #pragma once
 
-#define DEFAULT_CONFIGURATION_FILE "config.json"
-
-#include <string>
+#include "ServerConfig.hpp"
+#include <chrono>
 #include <iostream>
+#include <string>
+#include <thread>
+#include <vector>
 
 class Server
 {
 private:
-	std::string _name;
+    std::vector<ServerConfig> _configs;
 
 public:
-	Server(std::string configFile = DEFAULT_CONFIGURATION_FILE);
-	Server(const Server &src) = default;
-	Server(Server &&src) = default;
-	Server &operator=(const Server &src) = default;
-	Server &operator=(Server &&src) = default;
-	~Server() = default;
+    Server(std::vector<ServerConfig> configs);
+    Server(const Server &src) = default;
+    Server(Server &&src) = default;
+    Server &operator=(const Server &src) = default;
+    Server &operator=(Server &&src) = default;
+    ~Server() = default;
 
-	void run();
+    void run();
 };
