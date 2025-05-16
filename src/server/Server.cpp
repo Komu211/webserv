@@ -2,27 +2,27 @@
 
 Server::Server(std::vector<ServerConfig> configs) : _configs(std::move(configs))
 {
-    try {
-        for (const auto &config : _configs)
-        {
-            auto newSocket = Socket(config.getHost(), config.getPort());
-            bool exists = false;
-            for (const auto& sockPtr : _sockets) {
-                if (*sockPtr == newSocket)
-                {
-                    exists = true;
-                    break;
-                }
-            }
-            if (exists)
-                continue;
-            // TODO: Initialize the socket (bind, listen, etc.)
-            _sockets.insert(std::make_unique<Socket>(newSocket));
-        }
-    }
-    catch (const std::exception &e)
+    for (const auto &config : _configs)
     {
-        throw std::runtime_error("Failed to create server sockets");
+        auto newSocket = std::make_unique<Socket>(config.getHost(), config.getPort());
+        bool exists = false;
+        for (const auto &existingSocket : _sockets)
+        {
+            if (*existingSocket == *newSocket)
+                exists = true;
+        }
+        if (exists)
+            continue;
+        try
+        {
+            newSocket->initSocket();
+        }
+        catch (const std::runtime_error &e)
+        {
+            std::cerr << "Error initializing socket: " << e.what() << std::endl;
+            continue;
+        }
+        _sockets.insert(std::move(newSocket));
     }
 }
 

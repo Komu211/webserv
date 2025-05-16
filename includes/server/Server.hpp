@@ -17,7 +17,6 @@ private:
     std::vector<ServerConfig> _configs;
     std::unordered_set<std::unique_ptr<Socket>> _sockets;
 
-
 public:
     explicit Server(std::vector<ServerConfig> configs);
     Server(const Server &src) = default;
