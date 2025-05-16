@@ -4,6 +4,15 @@
 
 ServerConfig::ServerConfig()
 {
+	_host = "localhost";
+	_index = "index.html";
+	_root = ".";
+	_serverNames = {"localhost"};
+}
+
+ServerConfig::ServerConfig(const std::string &configFile)
+{
+	throw std::runtime_error("Not implemented");
 }
 
 void ServerConfig::setHost(const std::string &host)

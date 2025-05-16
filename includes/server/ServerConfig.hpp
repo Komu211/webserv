@@ -12,7 +12,7 @@ private:
     std::vector<std::string> _serverNames = {};
 public:
 	ServerConfig();
-
+	ServerConfig(const std::string &configFile);
 	std::string getHost() const;
 	std::string getIndex() const;
 	std::string getRoot() const;
