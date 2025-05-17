@@ -20,9 +20,9 @@ private:
     int         _fd;
 
     void createSocket();
-    void setNonBlocking();
+    void setNonBlocking() const;
     void bindSocket();
-    void listenSocket(int backlog = 10);
+    void listenSocket(int backlog = 10) const;
 
 public:
     Socket(std::string host, int port);

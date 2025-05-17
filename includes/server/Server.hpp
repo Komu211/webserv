@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ActiveSockets.hpp"
+#include "PollManager.hpp"
 #include "ServerConfig.hpp"
 #include "Socket.hpp"
 #include <chrono>
@@ -10,15 +10,15 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
-#include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
 class Server
 {
 private:
-    std::vector<ServerConfig>                   _configs;
-    std::unordered_set<std::unique_ptr<Socket>> _sockets;
-    ActiveSockets                               _activeSockets;
+    std::vector<ServerConfig>                        _configs;
+    std::unordered_map<int, std::unique_ptr<Socket>> _sockets;
+    PollManager                                      _pollManager;
 
 public:
     explicit Server(std::vector<ServerConfig> configs);
@@ -32,6 +32,6 @@ public:
     [[nodiscard]] std::vector<ServerConfig> get_configs() const;
     void set_configs(const std::vector<ServerConfig> &configs);
 
-    void fillActiveSockets();
+    void fillPollManager();
     void run();
 };

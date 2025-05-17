@@ -12,8 +12,10 @@ int main()
     config2.setPort(8081);
     config3.setPort(8082);
 
+    config3.setHost("0.0.0.0");
+
     Server server({config1, config2, config3});
-    server.fillActiveSockets();
+    server.fillPollManager();
     server.run();
     return (0);
 }

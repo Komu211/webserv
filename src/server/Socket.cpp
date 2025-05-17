@@ -43,12 +43,12 @@ void Socket::set_host(const std::string &host)
     _host = host;
 }
 
-void Socket::set_port(int port)
+void Socket::set_port(const int port)
 {
     _port = port;
 }
 
-void Socket::set_fd(int fd)
+void Socket::set_fd(const int fd)
 {
     _fd = fd;
 }
@@ -60,8 +60,6 @@ void Socket::createSocket()
     {
         throw std::runtime_error("Failed to create socket");
     }
-
-    // Set socket option to reuse address
     int opt = 1;
     if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
@@ -70,9 +68,9 @@ void Socket::createSocket()
     }
 }
 
-void Socket::setNonBlocking()
+void Socket::setNonBlocking() const
 {
-    int flags = fcntl(_fd, F_GETFL, 0);
+    const int flags = fcntl(_fd, F_GETFL, 0);
     if (flags == -1)
     {
         close(_fd);
@@ -88,8 +86,7 @@ void Socket::setNonBlocking()
 
 void Socket::bindSocket()
 {
-    struct sockaddr_in address;
-    std::memset(&address, 0, sizeof(address));
+    struct sockaddr_in address = {};
 
     address.sin_family = AF_INET;
     address.sin_port = htons(_port);
@@ -112,14 +109,14 @@ void Socket::bindSocket()
         }
     }
 
-    if (bind(_fd, (struct sockaddr *) &address, sizeof(address)) < 0)
+    if (bind(_fd, reinterpret_cast<struct sockaddr *>(&address), sizeof(address)) < 0)
     {
         close(_fd);
         throw std::runtime_error("Failed to bind socket to " + _host + ":" + std::to_string(_port));
     }
 }
 
-void Socket::listenSocket(int backlog)
+void Socket::listenSocket(const int backlog) const
 {
     if (listen(_fd, backlog) < 0)
     {

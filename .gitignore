@@ -1,3 +1,4 @@
 webserv
 obj/
 .DS_Store
+request_*.txt
