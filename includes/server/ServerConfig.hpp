@@ -23,6 +23,7 @@ public:
     void setHost(const std::string &host);
     void setIndex(const std::string &index);
     void setRoot(const std::string &root);
+    void setPort(int newPort);
     void setServerNames(const std::vector<std::string> &serverNames);
     void addServerName(const std::string &serverName);
 };

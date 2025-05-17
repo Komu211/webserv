@@ -29,6 +29,11 @@ void ServerConfig::setRoot(const std::string &root)
     _root = root;
 }
 
+void ServerConfig::setPort(int newPort)
+{
+    _port = newPort;
+}
+
 void ServerConfig::setServerNames(const std::vector<std::string> &serverNames)
 {
     _serverNames = serverNames;

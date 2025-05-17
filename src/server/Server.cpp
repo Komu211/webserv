@@ -51,8 +51,8 @@ void Server::run()
     {
         /*
          *TODO:
-         * 1. Poll for events on the watched FDs
-         * 2. Accept new connections
+         * 1. Poll for events on the watched FDs ✅
+         * 2. Accept new connections ✅
          * 3. Read requests from clients
          * 4. Read available internal files
          * 5. Send responses to clients
@@ -64,7 +64,7 @@ void Server::run()
         // {
         //     std::cout << *sockPtr << std::endl;
         // }
-        const int pollResult = poll(_activeSockets.data(), _activeSockets.size(), 2000);
+        const int pollResult = poll(_activeSockets.data(), _activeSockets.size(), -1);
         if (pollResult < 0)
         {
             std::cerr << "Poll error: " << strerror(errno) << std::endl;
@@ -79,38 +79,32 @@ void Server::run()
         {
             if (pollFd.revents & POLLIN)
             {
-                if (pollFd.fd == 3)
+                int clientFd = accept(pollFd.fd, nullptr, nullptr);
+                if (clientFd >= 0)
                 {
-                    int clientFd = accept(pollFd.fd, nullptr, nullptr);
-                    if (clientFd >= 0)
+                    std::cout << "Accepted new connection: " << clientFd << std::endl;
+                    char buffer[1024];
+                    ssize_t bytesRead = read(clientFd, buffer, sizeof(buffer) - 1);
+                    if (bytesRead > 0)
                     {
-                        std::cout << "Accepted new connection: " << clientFd << std::endl;
-                        char buffer[1024];
-                        ssize_t bytesRead = read(clientFd, buffer, sizeof(buffer) - 1);
-                        if (bytesRead > 0)
-                        {
-                            buffer[bytesRead] = '\0';
-                            std::cout << "Received request:\n"
-                                      << buffer << std::endl;
-                        }
-
-                        std::string response = "HTTP/1.1 200 OK\r\n"
-                                               "Content-Type: text/plain\r\n"
-                                               "Content-Length: 13\r\n"
-                                               "\r\n"
-                                               "Hello, world!";
-                        send(clientFd, response.c_str(), response.size(), 0);
-                        close(clientFd);
+                        buffer[bytesRead] = '\0';
+                        std::cout << "Received request:\n"
+                                  << buffer << std::endl;
                     }
-                }
 
+                    std::string response = "HTTP/1.1 200 OK\r\n"
+                                           "Content-Type: text/plain\r\n"
+                                           "Content-Length: 13\r\n"
+                                           "\r\n"
+                                           "Hello, world!";
+                    send(clientFd, response.c_str(), response.size(), 0);
+                    close(clientFd);
+                }
                 else
                 {
-                    std::cout << "Client socket ready to read: " << pollFd.fd << std::endl;
+                    std::cerr << "Accept error: " << strerror(errno) << std::endl;
                 }
             }
         }
-
-        // Sleep for 10 seconds
     }
 }
