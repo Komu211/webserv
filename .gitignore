@@ -1,3 +1,10 @@
 webserv
 obj/
 .DS_Store
+.vscode
+a.out
+*.o
+*.d
+*.out
+temp_files
+test*

@@ -47,7 +47,7 @@ void Server::fillActiveSockets()
 void Server::run()
 {
     std::cout << "Server is running..." << std::endl;
-    while (42)
+    while (g_shutdownServer == 0)
     {
         /*
          *TODO:
@@ -67,6 +67,10 @@ void Server::run()
         const int pollResult = poll(_activeSockets.data(), _activeSockets.size(), -1);
         if (pollResult < 0)
         {
+            // poll() was interrupted by a signal. Check g_shutdownServer flag in loop condition
+            if (errno == EINTR)
+                continue;
+
             std::cerr << "Poll error: " << strerror(errno) << std::endl;
             continue;
         }
@@ -83,13 +87,12 @@ void Server::run()
                 if (clientFd >= 0)
                 {
                     std::cout << "Accepted new connection: " << clientFd << std::endl;
-                    char buffer[1024];
+                    char    buffer[1024];
                     ssize_t bytesRead = read(clientFd, buffer, sizeof(buffer) - 1);
                     if (bytesRead > 0)
                     {
                         buffer[bytesRead] = '\0';
-                        std::cout << "Received request:\n"
-                                  << buffer << std::endl;
+                        std::cout << "Received request:\n" << buffer << std::endl;
                     }
 
                     std::string response = "HTTP/1.1 200 OK\r\n"
@@ -107,4 +110,6 @@ void Server::run()
             }
         }
     }
+
+    std::cout << "Server successfully stopped. Goodbye!" << '\n';
 }

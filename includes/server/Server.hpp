@@ -4,6 +4,7 @@
 #include "ServerConfig.hpp"
 #include "Socket.hpp"
 #include <chrono>
+#include <csignal>
 #include <iostream>
 #include <memory>
 #include <poll.h>
@@ -12,6 +13,9 @@
 #include <thread>
 #include <unordered_set>
 #include <vector>
+
+// Global volatile flag to signal shutdown
+extern volatile sig_atomic_t g_shutdownServer;
 
 class Server
 {
@@ -30,7 +34,7 @@ public:
 
     // Getters and Setters
     [[nodiscard]] std::vector<ServerConfig> get_configs() const;
-    void set_configs(const std::vector<ServerConfig> &configs);
+    void                                    set_configs(const std::vector<ServerConfig> &configs);
 
     void fillActiveSockets();
     void run();
