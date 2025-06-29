@@ -9,16 +9,19 @@ ServerConfig::ServerConfig()
     _serverNames = {"localhost"};
 }
 
+// ! Need to update because server can listen to multiple host:ports combinations
 void ServerConfig::setHost(const std::string &host)
 {
     _host = host;
 }
 
+// ! Need to update because server can listen to multiple host:ports combinations
 int ServerConfig::getPort() const
 {
     return _port;
 }
 
+// ! Need to update because there can be multiple index files
 void ServerConfig::setIndex(const std::string &index)
 {
     _index = index;
@@ -29,6 +32,7 @@ void ServerConfig::setRoot(const std::string &root)
     _root = root;
 }
 
+// ! Need to update because server can listen to multiple host:ports combinations
 void ServerConfig::setPort(int newPort)
 {
     _port = newPort;
@@ -44,11 +48,13 @@ void ServerConfig::addServerName(const std::string &serverName)
     _serverNames.push_back(serverName);
 }
 
+// ! Need to update because server can listen to multiple host:ports combinations
 std::string ServerConfig::getHost() const
 {
     return _host;
 }
 
+// ! Need to update because there can be multiple index files
 std::string ServerConfig::getIndex() const
 {
     return _index;
