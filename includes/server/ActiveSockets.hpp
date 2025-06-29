@@ -12,7 +12,7 @@ private:
 public:
     ActiveSockets();
     pollfd                    *data();
-    [[nodiscard]] size_t       size() const;
+    [[nodiscard]] std::size_t       size() const;
     void                       addSocket(int fd, short events);
     void                       removeSocket(int fd);
     std::vector<struct pollfd> getPollFDs();

@@ -8,7 +8,7 @@ pollfd *ActiveSockets::data()
     return _pollfds.data();
 }
 
-size_t ActiveSockets::size() const
+std::size_t ActiveSockets::size() const
 {
     return _pollfds.size();
 }
