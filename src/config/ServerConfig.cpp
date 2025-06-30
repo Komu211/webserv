@@ -65,6 +65,7 @@ std::string ServerConfig::getRoot() const
     return _root;
 }
 
+// ! Inefficient: making a copy of vector on every return (use const std::vector<>&)
 std::vector<std::string> ServerConfig::getServerNames() const
 {
     return _serverNames;

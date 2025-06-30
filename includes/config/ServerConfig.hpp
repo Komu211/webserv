@@ -1,7 +1,6 @@
 #pragma once
 
 #include <map>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -35,11 +34,8 @@ private:
     // Files that will be used as an index (checked in this order)
     std::vector<std::string> _index_files_vec{};
 
-    // All `server_name`s (Host header) this server responds to
-    std::set<std::string> _server_names_set{};
-
     // Sets configuration depending on a request URI
-    // std::map<std::string, LocationConfig> _locations_map;
+    // * std::map<std::string, LocationConfig> _locations_map;
 
     // URI that will be shown for the specified error codes (must be between 300 and 599)
     std::map<int, std::string> _error_pages_map{};
@@ -76,5 +72,5 @@ public:
     ~ServerConfig() = default;
 
     // Main parameterized ctor (parses server_block_str, inherits the rest from global_config)
-    // ServerConfig(const std::string &server_block_str, const GlobalConfig &global_config);
+    ServerConfig(const std::string &server_block_str, const GlobalConfig &global_config);
 };

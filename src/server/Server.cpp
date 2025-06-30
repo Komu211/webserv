@@ -26,6 +26,7 @@ Server::Server(std::vector<ServerConfig> configs) : _configs(std::move(configs))
     }
 }
 
+// ! Inefficient: making a copy of vector on every return (use const std::vector<>&)
 std::vector<ServerConfig> Server::get_configs() const
 {
     return _configs;
