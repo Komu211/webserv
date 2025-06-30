@@ -1,15 +1,15 @@
 #pragma once
 
 #include "ServerConfig.hpp"
-#include <cstring> /* strerror() */
-#include <fstream> /* std::ifstream */
+#include <algorithm> /* std::transform() */
+#include <cstring>   /* strerror() */
+#include <fstream>   /* std::ifstream */
 #include <iostream>
+#include <limits>
 #include <map>
 #include <stdexcept> /* std::runtime_error */
 #include <string>
 #include <vector>
-#include <limits>
-#include <algorithm> /* std::transform() */
 
 class ServerConfig;
 
@@ -32,7 +32,10 @@ private:
     std::map<int, std::string> _error_pages_map{};
 
     // `ServerConfig`s
-    std::vector<ServerConfig> _serverConfigs;
+    std::vector<ServerConfig> _serverConfigs{};
+
+    // `ServerConfig`s in string form for only for use in parser
+    std::vector<std::string> _serverConfigsStr{};
 
 public:
     // OCF
@@ -57,7 +60,10 @@ private:
     void setRoot(std::string directive);
     void setClientMaxBodySize(std::string directive);
     void setAutoIndex(std::string directive);
+    void setErrorPage(std::string directive);
+    void setIndex(std::string directive);
 };
 
 // Helper functions
-void trimWhitespace(std::string &str, const std::string &whitespace = " \t\n\r\f\v");
+void                     trimWhitespace(std::string &str, const std::string &whitespace = " \t\n\r\f\v");
+std::vector<std::string> splitStr(const std::string &str, const std::string &charset = " \t\n\r\f\v");

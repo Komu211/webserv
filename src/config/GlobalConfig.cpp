@@ -75,8 +75,12 @@ void GlobalConfig::parseConfFile(std::ifstream &file_stream)
         if (!trailingContent.empty())
             throw std::runtime_error("Config file syntax error: Unexpected trailing content: " + trailingContent);
     }
-    if (_serverConfigs.empty())
+    if (_serverConfigsStr.empty())
         throw std::runtime_error("At least one server block must be provided in the config file");
+
+    // Set ServerConfigs using the strings saved earlier
+    for (auto &elem : _serverConfigsStr)
+        _serverConfigs.emplace_back(ServerConfig(elem, *this));
 }
 
 void GlobalConfig::setConfigurationValue(std::string directive)
@@ -90,9 +94,9 @@ void GlobalConfig::setConfigurationValue(std::string directive)
     std::string error_page{"error_page"};
     std::string index{"index"};
 
-    // Set server config
+    // Set server config (just save strings for now)
     if (directive.compare(0, server.length(), server) == 0)
-        _serverConfigs.emplace_back(ServerConfig(directive, *this));
+        _serverConfigsStr.push_back(directive.substr(server.length() + 1));
     // Set root
     else if (directive.compare(0, root.length(), root) == 0)
         setRoot(directive.substr(root.length() + 1));
@@ -102,8 +106,12 @@ void GlobalConfig::setConfigurationValue(std::string directive)
     // Set autoindex on or off
     else if (directive.compare(0, autoindex.length(), autoindex) == 0)
         setAutoIndex(directive.substr(autoindex.length() + 1));
-    // ! _error_pages_map todo
-    // ! _index_files_vec todo
+    // Set error pages
+    else if (directive.compare(0, error_page.length(), error_page) == 0)
+        setErrorPage(directive.substr(error_page.length() + 1));
+    // Set index files
+    else if (directive.compare(0, index.length(), index) == 0)
+        setIndex(directive.substr(index.length() + 1));
     else
         throw std::runtime_error("Config file syntax error: Disallowed directive in global context: " + directive);
 }
@@ -180,6 +188,52 @@ void GlobalConfig::setAutoIndex(std::string directive)
         throw std::runtime_error("Invalid 'autoindex' directive value: " + directive);
 }
 
+void GlobalConfig::setErrorPage(std::string directive)
+{
+    trimWhitespace(directive, "; \t\n\r\f\v");
+
+    std::vector<std::string> args{splitStr(directive)};
+
+    if (args.size() < 2)
+        throw std::runtime_error("Invalid 'error_page' directive value: " + directive);
+
+    std::string errorPageURI{args.back()};
+    args.pop_back();
+
+    for (auto &elem : args)
+    {
+        int         errorNum;
+        std::size_t remainingPos;
+        trimWhitespace(elem);
+        try
+        {
+            errorNum = std::stoi(elem, &remainingPos);
+        }
+        catch (const std::exception &)
+        {
+            throw std::runtime_error("Invalid 'error_page' directive value: " + directive + ": Not a valid error code: " + elem);
+        }
+        if (remainingPos != elem.length())
+            throw std::runtime_error("Invalid 'error_page' directive value: " + directive + ": Not a valid number (error code): " + elem);
+        if (errorNum < 300 || errorNum > 599)
+            throw std::runtime_error("Invalid 'error_page' directive value: " + directive + ": Value must be between 300 and 599: " + elem);
+        _error_pages_map[errno] = errorPageURI;
+    }
+}
+
+void GlobalConfig::setIndex(std::string directive)
+{
+    trimWhitespace(directive, "; \t\n\r\f\v");
+
+    std::vector<std::string> args{splitStr(directive)};
+
+    for (auto &elem : args)
+    {
+        trimWhitespace(elem);
+        _index_files_vec.push_back(elem);
+    }
+}
+
 // Helpers
 
 void trimWhitespace(std::string &str, const std::string &whitespace)
@@ -198,8 +252,26 @@ void trimWhitespace(std::string &str, const std::string &whitespace)
     str = str.substr(firstNonSpace, strLen);
 }
 
-// std::vector<std::string> splitStr(const std::string &str, const std::string &whitespace = " \t\n\r\f\v")
-// {
-//     std::size_t wordStartPos;
-//     // ! Todo
-// }
+std::vector<std::string> splitStr(const std::string &str, const std::string &charset)
+{
+    std::vector<std::string> result;
+    std::size_t              wordStartPos{0};
+
+    for (std::size_t i{0}; i < str.length(); ++i)
+    {
+        if (i + 1 == str.length())
+        {
+            result.push_back(str.substr(wordStartPos));
+            wordStartPos = i + 1;
+        }
+        else if (charset.find(str[i]) != std::string::npos)
+        {
+            result.push_back(str.substr(wordStartPos, i - wordStartPos));
+            ++i;
+            while (charset.find(str[i]) != std::string::npos)
+                ++i;
+            wordStartPos = i;
+        }
+    }
+    return result;
+}
