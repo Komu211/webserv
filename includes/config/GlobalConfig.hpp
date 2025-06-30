@@ -65,5 +65,6 @@ private:
 };
 
 // Helper functions
+std::string              iFStreamToString(std::ifstream &file_stream);
 void                     trimWhitespace(std::string &str, const std::string &whitespace = " \t\n\r\f\v");
 std::vector<std::string> splitStr(const std::string &str, const std::string &charset = " \t\n\r\f\v");

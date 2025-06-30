@@ -16,24 +16,8 @@ GlobalConfig::GlobalConfig(std::string file_name)
 
 void GlobalConfig::parseConfFile(std::ifstream &file_stream)
 {
-    // Save entire file in a string // * Can be made into a helper function
-    std::string line;
-    std::string fileContents{""};
-    while (std::getline(file_stream, line))
-    {
-        // Remove comments
-        auto commentStart{line.find('#')};
-        if (commentStart != std::string::npos)
-            line.erase(commentStart);
-
-        trimWhitespace(line);
-
-        if (line.empty())
-            continue;
-
-        fileContents.append(line);
-        fileContents += ' ';
-    }
+    // Save entire file in a string
+    std::string fileContents{iFStreamToString(file_stream)};
 
     int         curlyLevel{0};
     std::size_t directiveStartPos{0};
@@ -235,6 +219,28 @@ void GlobalConfig::setIndex(std::string directive)
 }
 
 // Helpers
+
+std::string iFStreamToString(std::ifstream &file_stream)
+{
+    std::string result{""};
+    std::string line;
+    while (std::getline(file_stream, line))
+    {
+        // Remove comments
+        auto commentStart{line.find('#')};
+        if (commentStart != std::string::npos)
+            line.erase(commentStart);
+
+        trimWhitespace(line);
+
+        if (line.empty())
+            continue;
+
+        result.append(line);
+        result += ' ';
+    }
+    return result;
+}
 
 void trimWhitespace(std::string &str, const std::string &whitespace)
 {
