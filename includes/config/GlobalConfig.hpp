@@ -3,11 +3,13 @@
 #include "ServerConfig.hpp"
 #include <cstring> /* strerror() */
 #include <fstream> /* std::ifstream */
+#include <iostream>
 #include <map>
 #include <stdexcept> /* std::runtime_error */
 #include <string>
 #include <vector>
-#include <iostream>
+#include <limits>
+#include <algorithm> /* std::transform() */
 
 class ServerConfig;
 
@@ -30,7 +32,7 @@ private:
     std::map<int, std::string> _error_pages_map{};
 
     // `ServerConfig`s
-    std::vector<ServerConfig> _serverConfigSet;
+    std::vector<ServerConfig> _serverConfigs;
 
 public:
     // OCF
@@ -43,12 +45,18 @@ public:
     // Main parameterized constructor
     GlobalConfig(std::string file_name);
 
-    // Main parser
-    void parseConfFile(std::ifstream &file_stream);
-
     // ! Getters
 
-    // No setters needed
+private:
+    // Main parser
+    void parseConfFile(std::ifstream &file_stream);
+    // Helper used by parser
+    void setConfigurationValue(std::string currentDirective);
+
+    // Setters don't need to be public
+    void setRoot(std::string directive);
+    void setClientMaxBodySize(std::string directive);
+    void setAutoIndex(std::string directive);
 };
 
 // Helper functions

@@ -9,6 +9,14 @@ ServerConfig::ServerConfig()
     _serverNames = {"localhost"};
 }
 
+// Main parameterized ctor (parses server_block_str, inherits the rest from global_config)
+ServerConfig::ServerConfig(const std::string &server_block_str, const GlobalConfig &global_config)
+{
+    // TODO
+    (void)server_block_str; // ! test
+    (void)global_config; // ! test
+}
+
 // ! Need to update because server can listen to multiple host:ports combinations
 void ServerConfig::setHost(const std::string &host)
 {
