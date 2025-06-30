@@ -4,7 +4,7 @@ SRCS		=	main.cpp \
 				Server.cpp \
 				ServerConfig.cpp \
 				Socket.cpp \
-				PollManager.cpp
+				PollManager.cpp \
 
 
 INCLUDES	=	-Iincludes \

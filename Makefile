@@ -1,10 +1,9 @@
 include srcs.mk
 
-
 NAME			=	webserv
 
 CXX				=	c++
-CXXFLAGS		=	-Wall -Wextra -Werror -std=c++17 -MMD -MP
+CXXFLAGS		=	-std=c++17 -Wall -Wextra -Werror -MMD -MP
 DEBUG_FLAGS		=	-g -fsanitize=address
 RM				=	rm -f
 DEPENDS			=	$(OBJS:.o=.d)

@@ -69,6 +69,8 @@ void Server::run()
          */
 
         const int pollResult = poll(_pollManager.data(), _pollManager.size(), -1);
+        std::vector<int> clientsToRemove;
+
         if (pollResult < 0)
         {
             std::cerr << "Poll error: " << strerror(errno) << std::endl;
@@ -81,56 +83,28 @@ void Server::run()
         }
 
         // Stage 1: Handle new connections
-        for (int serverFd : _pollManager.getReadableServerSockets())
+        for (const int serverFd : _pollManager.getReadableServerSockets())
         {
-            const int clientFd = accept(serverFd, nullptr, nullptr);
-            if (clientFd >= 0)
+            try
             {
-                std::cout << "Accepted new connection via port: \n"
-                          << *(_sockets[serverFd]) << std::endl;
-                _pollManager.addClientSocket(clientFd);
-                clientRequests[clientFd] = "";
+                acceptNewConnections(serverFd, clientRequests);
             }
-            else
+            catch (const std::runtime_error &e)
             {
-                std::cerr << "Accept error: " << strerror(errno) << std::endl;
+                std::cerr << e.what() << std::endl;
             }
         }
 
         // Stage 2: Read from clients
-        std::vector<int> clientsToRemove;
         for (int clientFd : _pollManager.getReadableClientSockets())
         {
-            char    buffer[1024];
-            ssize_t bytesRead = read(clientFd, buffer, sizeof(buffer) - 1);
-
-            if (bytesRead > 0)
+            try
             {
-                buffer[bytesRead] = '\0';
-                clientRequests[clientFd] += buffer;
-
-                // Put the recieved request into a file
-                if (std::ofstream requestFile("request_" + std::to_string(clientFd) + ".txt");
-                    requestFile.is_open())
-                {
-                    requestFile << clientRequests[clientFd];
-                    requestFile.close();
-                }
-                else
-                {
-                    std::cerr << "Error opening file for writing: " << strerror(errno) << std::endl;
-                }
+                readFromClient(clientFd, clientRequests, clientsToRemove);
             }
-            else if (bytesRead == 0)
+            catch (const std::runtime_error &e)
             {
-                // Client closed connection
-                std::cout << "Client " << clientFd << " closed connection" << std::endl;
-                clientsToRemove.push_back(clientFd);
-            }
-            else
-            {
-                // Error reading
-                std::cerr << "Error reading from client " << clientFd << ": " << strerror(errno) << std::endl;
+                std::cerr << "Error reading from client " << clientFd << ": " << e.what() << std::endl;
                 clientsToRemove.push_back(clientFd);
             }
         }
@@ -138,24 +112,15 @@ void Server::run()
         // Stage 3: Write responses to clients
         for (int clientFd : _pollManager.getWritableClientSockets())
         {
-            if (!clientRequests[clientFd].empty())
+            try
             {
-                std::string response = "HTTP/1.1 200 OK\r\n"
-                                       "Content-Type: text/plain\r\n"
-                                       "Content-Length: 13\r\n"
-                                       "\r\n"
-                                       "Hello, world!";
-
-                if (send(clientFd, response.c_str(), response.size(), 0) > 0)
-                {
-                    std::cout << "Sent response to client " << clientFd << std::endl;
-                    clientsToRemove.push_back(clientFd);
-                }
-                else
-                {
-                    std::cerr << "Error sending response to client " << clientFd << ": " << strerror(errno) << std::endl;
-                    clientsToRemove.push_back(clientFd);
-                }
+                writeResponseToClient(clientFd, clientRequests);
+                clientsToRemove.push_back(clientFd);
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error writing to client " << clientFd << ": " << e.what() << std::endl;
+                clientsToRemove.push_back(clientFd);
             }
         }
 
@@ -165,6 +130,77 @@ void Server::run()
             _pollManager.removeSocket(fd);
             clientRequests.erase(fd);
             close(fd);
+        }
+    }
+}
+
+void Server::acceptNewConnections(int serverFd, std::unordered_map<int, std::string> &clientRequests)
+{
+    const int clientFd = accept(serverFd, nullptr, nullptr);
+    if (clientFd >= 0)
+    {
+        std::cout << "Accepted new connection via port: \n"
+                  << *(_sockets[serverFd]) << std::endl;
+        _pollManager.addClientSocket(clientFd);
+        clientRequests[clientFd] = "";
+    }
+    else
+    {
+        throw std::runtime_error("Error accepting new connection: " + std::string(strerror(errno)));
+    }
+}
+
+void Server::readFromClient(int clientFd, std::unordered_map<int, std::string> &clientRequests, std::vector<int> &clientsToRemove)
+{
+    char    buffer[1024];
+    ssize_t bytesRead = read(clientFd, buffer, sizeof(buffer) - 1);
+
+    if (bytesRead > 0)
+    {
+        buffer[bytesRead] = '\0';
+        clientRequests[clientFd] += buffer;
+
+        // Put the recieved request into a file - TODO: replace with a proper request parser
+        if (std::ofstream requestFile("request_" + std::to_string(clientFd) + ".txt");
+            requestFile.is_open())
+        {
+            requestFile << clientRequests[clientFd];
+            requestFile.close();
+        }
+        else
+        {
+            throw std::runtime_error("Error opening file to write request: " + std::string(strerror(errno)));
+        }
+    }
+    else if (bytesRead == 0)
+    {
+        // Client closed connection
+        std::cout << "Client " << clientFd << " closed connection" << std::endl;
+        clientsToRemove.push_back(clientFd);
+    }
+    else
+    {
+        // Error reading from client
+        throw std::runtime_error("Error reading from client " + std::to_string(clientFd) + ": " + strerror(errno));
+    }
+}
+void Server::writeResponseToClient(int clientFd, std::unordered_map<int, std::string> &clientRequests)
+{
+    if (!clientRequests[clientFd].empty())
+    {
+        std::string response = "HTTP/1.1 200 OK\r\n"
+                               "Content-Type: text/plain\r\n"
+                               "Content-Length: 13\r\n"
+                               "\r\n"
+                               "Hello, world!";
+
+        if (send(clientFd, response.c_str(), response.size(), 0) > 0)
+        {
+            std::cout << "Sent response to client " << clientFd << std::endl;
+        }
+        else
+        {
+            throw std::runtime_error("Error sending response to client " + std::to_string(clientFd) + ": " + strerror(errno));
         }
     }
 }

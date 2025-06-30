@@ -20,6 +20,10 @@ private:
     std::unordered_map<int, std::unique_ptr<Socket>> _sockets;
     PollManager                                      _pollManager;
 
+    void acceptNewConnections(int serverFd, std::unordered_map<int, std::string> &clientRequests);
+    void readFromClient(int clientFd, std::unordered_map<int, std::string> &clientRequests, std::vector<int> &clientsToRemove);
+    void writeResponseToClient(int clientFd, std::unordered_map<int, std::string> &clientRequests);
+
 public:
     explicit Server(std::vector<ServerConfig> configs);
     Server(const Server &src) = default;
