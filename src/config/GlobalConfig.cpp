@@ -14,19 +14,21 @@ GlobalConfig::GlobalConfig(std::string file_name)
     parseConfFile(file_stream);
 }
 
+void setConfigurationValue(const std::string &currentDirective)
+{
+    // ! set configuration value
+    std::cout << currentDirective << '\n'; // ! test
+}
+
 void GlobalConfig::parseConfFile(std::ifstream &file_stream)
 {
-    int         lineNum{0};
-    bool        directiveEnd{false};
-    int         curlyLevel{0};
-    std::string currentDirective{""};
-
-    for (std::string line; std::getline(file_stream, line);)
+    // Save entire file in a string
+    std::string line;
+    std::string fileContents{""};
+    while (std::getline(file_stream, line))
     {
-        ++lineNum;
-
         // Remove comments
-        auto commentStart {line.find('#')};
+        auto commentStart{line.find('#')};
         if (commentStart != std::string::npos)
             line.erase(commentStart);
 
@@ -35,56 +37,50 @@ void GlobalConfig::parseConfFile(std::ifstream &file_stream)
         if (line.empty())
             continue;
 
-        std::size_t directiveEndPos {std::string::npos};
-        for (auto it{line.begin()}; it != line.end(); ++it)
-        {
-            if ( curlyLevel == 0 && *it == ';')
-            {
-                directiveEndPos = it - line.begin();
-                directiveEnd = true;
-                currentDirective.append(line, 0, directiveEndPos + 1);
-                break;
-            }
-            if (*it == '{')
-                ++curlyLevel;
-            else if (*it == '}')
-            {
-                --curlyLevel;
-                if (curlyLevel == 0)
-                {
-                    directiveEndPos = it - line.begin();
-                    directiveEnd = true;
-                    currentDirective.append(line, 0, directiveEndPos + 1);
-                    break;
-                }
-                else if (curlyLevel < 0)
-                    throw std::runtime_error("Config file syntax error: Unexpected '}' on line " + std::to_string(lineNum));
-            }
-            //
-        }
+        fileContents.append(line);
+        fileContents += ' ';
+    }
 
-        if (directiveEnd)
-        {
-            // ! set configuration value
-            std::cout << "---Global directive found:---" << '\n'; // ! test
-            std::cout << currentDirective << '\n'; // ! test
-            std::cout << "----end of directive----" << '\n'; // ! test
-            
-            if (directiveEndPos + 1 < line.length())
-                currentDirective = line.substr(directiveEndPos + 1);
-            else
-                currentDirective = "";
+    int         curlyLevel{0};
+    std::size_t directiveStartPos{0};
+    std::size_t directiveEndPos{std::string::npos};
 
-            directiveEnd = false;
+    for (std::size_t index{0}; index < fileContents.length(); ++index)
+    {
+        if (curlyLevel == 0 && fileContents[index] == ';')
+        {
+            directiveEndPos = index;
+            setConfigurationValue(fileContents.substr(directiveStartPos, index - directiveStartPos + 1));
+            directiveStartPos = index + 1;
+            continue;
         }
-        else
-            currentDirective.append(line);
+        if (fileContents[index] == '{')
+            ++curlyLevel;
+        else if (fileContents[index] == '}')
+        {
+            --curlyLevel;
+            if (curlyLevel == 0)
+            {
+                directiveEndPos = index;
+                setConfigurationValue(fileContents.substr(directiveStartPos, index - directiveStartPos + 1));
+                directiveStartPos = index + 1;
+                continue;
+            }
+            else if (curlyLevel < 0)
+                throw std::runtime_error("Config file syntax error: Unexpected '}'");
+        }
     }
     if (curlyLevel > 0)
         throw std::runtime_error("Config file syntax error: Unclosed '{'");
     else if (curlyLevel < 0)
         throw std::runtime_error("Config file syntax error: Unexpected '}'");
-    //
+    if (directiveEndPos != fileContents.length() - 1)
+    {
+        std::string trailingContent {fileContents.substr(directiveEndPos + 1)};
+        trimWhitespace(trailingContent);
+        if (!trailingContent.empty())
+            throw std::runtime_error("Config file syntax error: Unexpected trailing content: " + trailingContent);
+    }
 }
 
 // Helper
