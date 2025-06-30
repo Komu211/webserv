@@ -25,6 +25,11 @@ void GlobalConfig::parseConfFile(std::ifstream &file_stream)
     {
         ++lineNum;
 
+        // Remove comments
+        auto commentStart {line.find('#')};
+        if (commentStart != std::string::npos)
+            line.erase(commentStart);
+
         trimWhitespace(line);
 
         if (line.empty())
@@ -61,7 +66,7 @@ void GlobalConfig::parseConfFile(std::ifstream &file_stream)
         if (directiveEnd)
         {
             // ! set configuration value
-            std::cout << "Global directive found:" << '\n'; // ! test
+            std::cout << "---Global directive found:---" << '\n'; // ! test
             std::cout << currentDirective << '\n'; // ! test
             std::cout << "----end of directive----" << '\n'; // ! test
             

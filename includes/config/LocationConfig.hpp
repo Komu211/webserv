@@ -3,6 +3,9 @@
 #include <map>
 #include <string>
 #include <vector>
+#include "ServerConfig.hpp"
+
+class ServerConfig;
 
 class LocationConfig
 {
@@ -35,8 +38,8 @@ public:
     LocationConfig &operator=(LocationConfig &&other) = default;
     ~LocationConfig() = default;
 
-    // Main parameterized constructor
-    LocationConfig(const std::string &confStr);
+    // Main parameterized ctor (parses location_block_str, inherits the rest from server_config)
+    LocationConfig(const std::string &location_block_str, const ServerConfig& server_config);
 
     // ! Getters
 
