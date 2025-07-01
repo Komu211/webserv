@@ -67,7 +67,7 @@ private: // Member functions for parser only
     // Main parser
     void parseConfFile(std::ifstream &file_stream);
     // Helper used by parser
-    void setConfigurationValue(std::string currentDirective);
+    void setConfigurationValue(std::string directive);
 
     // Setters don't need to be public
     void setRoot(std::string directive);

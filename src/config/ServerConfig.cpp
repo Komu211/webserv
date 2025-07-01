@@ -4,23 +4,38 @@ ServerConfig::ServerConfig()
 {
     _host = "localhost";
     _port = 8080;
-    _index = "index.html";
     _root = ".";
     _serverNames = {"localhost"};
 }
 
 // Main parameterized ctor (parses server_block_str, inherits the rest from global_config)
 ServerConfig::ServerConfig(const std::string &server_block_str, const GlobalConfig &global_config)
+    : _root{global_config.getRoot()}
+    , _index_files_vec{global_config.getIndexFiles()}
+    , _client_max_body_size{global_config.getClientMaxBodySize()}
+    , _autoindex{global_config.getAutoIndex()}
+    , _error_pages_map{global_config.getErrorPagesMap()}
 {
-    // TODO
-    (void)server_block_str; // ! test
-    (void)global_config; // ! test
+    parseServerConfig(server_block_str);
+
+    // ! getaddrinfo
 }
 
-// ! Need to update because server can listen to multiple host:ports combinations
-void ServerConfig::setHost(const std::string &host)
+ServerConfig::~ServerConfig()
 {
-    _host = host;
+    // ! freeaddrinfo
+}
+
+/* Getters */
+
+const std::string &ServerConfig::getRoot() const
+{
+    return _root;
+}
+
+const std::vector<std::string> &ServerConfig::getServerNames() const
+{
+    return _serverNames;
 }
 
 // ! Need to update because server can listen to multiple host:ports combinations
@@ -29,31 +44,10 @@ int ServerConfig::getPort() const
     return _port;
 }
 
-// ! Need to update because there can be multiple index files
-void ServerConfig::setIndex(const std::string &index)
-{
-    _index = index;
-}
-
-void ServerConfig::setRoot(const std::string &root)
-{
-    _root = root;
-}
-
-// ! Need to update because server can listen to multiple host:ports combinations
+// ! remove (not needed)
 void ServerConfig::setPort(int newPort)
 {
     _port = newPort;
-}
-
-void ServerConfig::setServerNames(const std::vector<std::string> &serverNames)
-{
-    _serverNames = serverNames;
-}
-
-void ServerConfig::addServerName(const std::string &serverName)
-{
-    _serverNames.push_back(serverName);
 }
 
 // ! Need to update because server can listen to multiple host:ports combinations
@@ -62,19 +56,370 @@ std::string ServerConfig::getHost() const
     return _host;
 }
 
-// ! Need to update because there can be multiple index files
-std::string ServerConfig::getIndex() const
+/* Parsing logic */
+
+void ServerConfig::parseServerConfig(std::string server_block_str)
 {
-    return _index;
+    trim(server_block_str, " \t\n\r\f\v");
+    if (server_block_str.front() != '{' || server_block_str.back() != '}' || server_block_str.length() < 2)
+        throw std::runtime_error("Config file syntax error: 'server' directive arguments should be enclosed in a "
+                                 "single {}: " +
+                                 server_block_str);
+    server_block_str.erase(0, 1);
+    server_block_str.erase(server_block_str.length() - 1, 1);
+    trim(server_block_str, " \t\n\r\f\v");
+
+    int         curlyLevel{0};
+    std::size_t directiveStartPos{0};
+    std::size_t directiveEndPos{std::string::npos};
+
+    for (std::size_t index{0}; index < server_block_str.length(); ++index)
+    {
+        if (curlyLevel == 0 && server_block_str[index] == ';')
+        {
+            directiveEndPos = index;
+            setConfigurationValue(server_block_str.substr(directiveStartPos, index - directiveStartPos + 1));
+            directiveStartPos = index + 1;
+            continue;
+        }
+        if (server_block_str[index] == '{')
+            ++curlyLevel;
+        else if (server_block_str[index] == '}')
+        {
+            --curlyLevel;
+            if (curlyLevel == 0)
+            {
+                directiveEndPos = index;
+                setConfigurationValue(server_block_str.substr(directiveStartPos, index - directiveStartPos + 1));
+                directiveStartPos = index + 1;
+                continue;
+            }
+            else if (curlyLevel < 0)
+                throw std::runtime_error("Config file syntax error: Unexpected '}'");
+        }
+    }
+    if (curlyLevel > 0)
+        throw std::runtime_error("Config file syntax error: Unclosed '{'");
+    else if (curlyLevel < 0)
+        throw std::runtime_error("Config file syntax error: Unexpected '}'");
+    if (directiveEndPos != server_block_str.length() - 1)
+    {
+        std::string trailingContent{server_block_str.substr(directiveEndPos + 1)};
+        trim(trailingContent);
+        if (!trailingContent.empty())
+            throw std::runtime_error("Config file syntax error: Unexpected trailing content: " + trailingContent);
+    }
+
+    // Set locationConfigs using the strings saved earlier
+    // for (auto &elem : _locationConfigsStr)
+    //     _locationConfigs.emplace_back(LocationConfig(elem, *this));
 }
 
-std::string ServerConfig::getRoot() const
+void ServerConfig::setConfigurationValue(std::string directive)
 {
-    return _root;
+    trim(directive);
+
+    std::string listen{"listen"};
+    std::string server_name{"server_name"};
+    std::string location{"location"};
+    // TODO std::string cgi_handler{"cgi_handler"};
+    std::string root{"root"};
+    std::string client_max_body_size{"client_max_body_size"};
+    std::string autoindex{"autoindex"};
+    std::string error_page{"error_page"};
+    std::string index{"index"};
+
+    // Set listening host:port(s) for this server
+    if (directive.compare(0, listen.length(), listen) == 0 && std::isspace(directive.at(listen.length())))
+        setListen(directive.substr(listen.length() + 1));
+    // Set server names
+    else if (directive.compare(0, server_name.length(), server_name) == 0 && std::isspace(directive.at(server_name.length())))
+        setServerName(directive.substr(server_name.length() + 1));
+    // Set location config (just save strings for now)
+    else if (directive.compare(0, location.length(), location) == 0 && std::isspace(directive.at(location.length())))
+        _locationConfigsStr.push_back(directive.substr(location.length() + 1));
+    // Set root
+    else if (directive.compare(0, root.length(), root) == 0 && std::isspace(directive.at(root.length())))
+        setRoot(directive.substr(root.length() + 1));
+    // Set client_max_body_size
+    else if (directive.compare(0, client_max_body_size.length(), client_max_body_size) == 0 &&
+             std::isspace(directive.at(client_max_body_size.length())))
+        setClientMaxBodySize(directive.substr(client_max_body_size.length() + 1));
+    // Set autoindex on or off
+    else if (directive.compare(0, autoindex.length(), autoindex) == 0 && std::isspace(directive.at(autoindex.length())))
+        setAutoIndex(directive.substr(autoindex.length() + 1));
+    // Set error pages
+    else if (directive.compare(0, error_page.length(), error_page) == 0 && std::isspace(directive.at(error_page.length())))
+        setErrorPage(directive.substr(error_page.length() + 1));
+    // Set index files
+    else if (directive.compare(0, index.length(), index) == 0 && std::isspace(directive.at(index.length())))
+        setIndex(directive.substr(index.length() + 1));
+    else
+        throw std::runtime_error("Config file syntax error: Disallowed directive in server context: " + directive);
 }
 
-// ! Inefficient: making a copy of vector on every return (use const std::vector<>&)
-std::vector<std::string> ServerConfig::getServerNames() const
+/* Setters (used by parser) */
+
+void ServerConfig::setListen(std::string directive)
 {
-    return _serverNames;
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    if (directive.empty())
+        throw std::runtime_error("Config file syntax error: 'listen' directive invalid number of arguments: " + directive);
+
+    std::string address;
+    std::string port;
+
+    if (directive.front() == '[')
+    {
+        auto endingBracketPos{directive.find_last_of(']')};
+        if (endingBracketPos == std::string::npos)
+            throw std::runtime_error("Config file syntax error: 'listen' directive invalid value: " + directive);
+
+        address = directive.substr(0, endingBracketPos + 1); // + 1 to convert index to count
+
+        // remove the [] (first and last characters)
+        address.erase(0, 1);
+        address.erase(address.length() - 1, 1);
+
+        // get the rest of the string
+        std::string portStr{};
+        if (endingBracketPos < directive.length() - 1)
+            portStr = directive.substr(endingBracketPos + 1);
+
+        if (portStr.empty()) // no port has been provided
+            port = "80";
+        else if (portStr.front() == ':' && portStr.length() > 1)
+            port = portStr.substr(1); // Skip the colon and the rest is port
+        else
+            throw std::runtime_error("Config file syntax error: 'listen' directive invalid value: " + directive);
+    }
+    else // either ipv4, ipv4:port, or just port
+    {
+        auto lastColonPos{directive.find_last_of(':')};
+        if (lastColonPos != std::string::npos)
+        {
+            // ipv4:port is provided
+            if (lastColonPos == 0 || lastColonPos == directive.length() - 1) // `:` must not be first or last
+                throw std::runtime_error("Config file syntax error: 'listen' directive invalid value: " + directive);
+            address = directive.substr(0, lastColonPos);
+            // * Validity checking can be skipped since it will be done by getaddrinfo
+            port = directive.substr(lastColonPos + 1);
+        }
+        else
+        {
+            // either only ipv4 or port is provided
+            // if it's numeric, it is port
+            std::size_t remainingPos;
+            int         converted;
+            try
+            {
+                converted = std::stoi(directive, &remainingPos);
+            }
+            catch (const std::exception &)
+            {
+                // Assume its only host and no port
+                port = "80";
+                address = directive;
+            }
+            if (port.empty()) // Catch block didn't execute
+            {
+                if (remainingPos < directive.length())
+                {
+                    // Some non-numeric characters after numeric (assume its only host and no port)
+                    port = "80";
+                    address = directive;
+                }
+                else
+                {
+                    // Only numeric
+                    if (converted < 1 || converted > 65535)
+                        throw std::runtime_error("Config file syntax error: 'listen' directive invalid port: " + directive);
+                    port = std::to_string(converted);
+                    address = "0.0.0.0";
+                }
+            }
+        }
+    }
+    // Ensure that address or port are not empty (shouldn't happen unless listen is [])
+    if (address.empty() || port.empty())
+        throw std::runtime_error("An error occurred while parsing 'listen' directive: " + directive);
+
+    // Save the address and port in our vector of pairs
+    std::pair<std::string, std::string> host_port{address, port};
+    _listen_host_port.emplace_back(std::move(host_port));
+}
+
+void ServerConfig::setServerName(std::string directive)
+{
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    if (directive.empty())
+        throw std::runtime_error("Config file syntax error: 'server_name' directive should have at least one "
+                                 "argument.");
+
+    std::vector<std::string> args{splitStr(directive)};
+
+    for (auto &elem : args)
+    {
+        trim(elem);
+        _serverNames.push_back(elem);
+    }
+}
+
+void ServerConfig::setRoot(std::string directive)
+{
+    if (_seen_root)
+        throw std::runtime_error("Config file syntax error: 'root' directive is duplicate: " + directive);
+
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    if (directive.empty())
+        throw std::runtime_error("Config file syntax error: 'root' directive invalid number of arguments: " + directive);
+
+    for (std::size_t i{0}; i < directive.size(); ++i)
+    {
+        if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
+            throw std::runtime_error("Config file syntax error: 'root' directive must not have more than one "
+                                     "argument: " +
+                                     directive);
+    }
+
+    _root = directive;
+    _seen_root = true;
+}
+
+void ServerConfig::setClientMaxBodySize(std::string directive)
+{
+    if (_seen_client_max_body_size)
+        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive is duplicate: " + directive);
+
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    if (directive.empty())
+        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of "
+                                 "arguments: " +
+                                 directive);
+
+    for (std::size_t i{0}; i < directive.size(); ++i)
+    {
+        if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
+            throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive must not have more "
+                                     "than one argument: " +
+                                     directive);
+    }
+
+    auto lastIndex{directive.length() - 1};
+    if (directive[lastIndex] == 'k' || directive[lastIndex] == 'K')
+    {
+        directive.erase(lastIndex);
+        directive.append("000");
+    }
+    else if (directive[lastIndex] == 'm' || directive[lastIndex] == 'M')
+    {
+        directive.erase(lastIndex);
+        directive.append("000000");
+    }
+    else if (directive[lastIndex] == 'g' || directive[lastIndex] == 'G')
+    {
+        directive.erase(lastIndex);
+        directive.append("000000000");
+    }
+
+    std::size_t remainingPos;
+    try
+    {
+        _client_max_body_size = std::stoul(directive, &remainingPos);
+    }
+    catch (const std::exception &)
+    {
+        throw std::runtime_error("Config file syntax error: Invalid 'client_max_body_size' directive value: " + directive);
+    }
+
+    if (remainingPos != directive.length())
+        throw std::runtime_error("Config file syntax error: Invalid 'client_max_body_size' directive value: " + directive);
+
+    // * This can be removed if we can ensure that 0 size means no size checking by the server
+    if (_client_max_body_size == 0)
+        _client_max_body_size = std::numeric_limits<std::size_t>::max();
+
+    _seen_client_max_body_size = true;
+}
+
+void ServerConfig::setAutoIndex(std::string directive)
+{
+    if (_seen_autoindex)
+        throw std::runtime_error("Config file syntax error: 'autoindex' directive is duplicate: " + directive);
+
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    // Convert string to lowercase
+    std::transform(directive.begin(), directive.end(), directive.begin(), [](unsigned char c) { return std::tolower(c); });
+
+    if (directive == "on")
+        _autoindex = true;
+    else if (directive == "off")
+        _autoindex = false;
+    else
+        throw std::runtime_error("Config file syntax error: Invalid 'autoindex' directive value: " + directive);
+    _seen_autoindex = true;
+}
+
+void ServerConfig::setErrorPage(std::string directive)
+{
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    std::vector<std::string> args{splitStr(directive)};
+
+    if (args.size() < 2)
+        throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive);
+
+    std::string errorPageURI{args.back()};
+    args.pop_back();
+
+    // Remove any error pages inherited from global context to override them
+    if (_using_parent_error_pages_map)
+        _error_pages_map.clear();
+    _using_parent_error_pages_map = false;
+
+    for (auto &elem : args)
+    {
+        int         errorNum;
+        std::size_t remainingPos;
+        trim(elem);
+        try
+        {
+            errorNum = std::stoi(elem, &remainingPos);
+        }
+        catch (const std::exception &)
+        {
+            throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive + ": Not a valid error code: " + elem);
+        }
+        if (remainingPos != elem.length())
+            throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive + ": Not a valid number (error code): " + elem);
+        if (errorNum < 300 || errorNum > 599)
+            throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive + ": Value must be between 300 and 599: " + elem);
+        _error_pages_map[errorNum] = errorPageURI;
+    }
+}
+
+void ServerConfig::setIndex(std::string directive)
+{
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    if (directive.empty())
+        throw std::runtime_error("Config file syntax error: 'index' directive should have at least one argument.");
+
+    std::vector<std::string> args{splitStr(directive)};
+
+    // Remove any index files inherited from global context to override them
+    if (_using_parent_index_files_vec)
+        _index_files_vec.clear();
+    _using_parent_index_files_vec = false;
+
+    for (auto &elem : args)
+    {
+        trim(elem);
+        _index_files_vec.push_back(elem);
+    }
 }
