@@ -55,12 +55,12 @@ void GlobalConfig::parseConfFile(std::ifstream &file_stream)
     if (directiveEndPos != fileContents.length() - 1)
     {
         std::string trailingContent{fileContents.substr(directiveEndPos + 1)};
-        trimWhitespace(trailingContent);
+        trim(trailingContent);
         if (!trailingContent.empty())
             throw std::runtime_error("Config file syntax error: Unexpected trailing content: " + trailingContent);
     }
     if (_serverConfigsStr.empty())
-        throw std::runtime_error("At least one server block must be provided in the config file");
+        throw std::runtime_error("Config file error: At least one server block must be provided");
 
     // Set ServerConfigs using the strings saved earlier
     for (auto &elem : _serverConfigsStr)
@@ -69,7 +69,7 @@ void GlobalConfig::parseConfFile(std::ifstream &file_stream)
 
 void GlobalConfig::setConfigurationValue(std::string directive)
 {
-    trimWhitespace(directive);
+    trim(directive);
 
     std::string server{"server"};
     std::string root{"root"};
@@ -104,22 +104,35 @@ void GlobalConfig::setConfigurationValue(std::string directive)
 
 void GlobalConfig::setRoot(std::string directive)
 {
-    trimWhitespace(directive, "; \t\n\r\f\v");
+    if (_seen_root)
+        throw std::runtime_error("Config file syntax error: 'root' directive is duplicate: " + directive);
+    
+    if (directive.empty())
+        throw std::runtime_error("Config file syntax error: 'root' directive invalid number of arguments: " + directive);
+
+    trim(directive, ";'\" \t\n\r\f\v");
+
     for (std::size_t i{0}; i < directive.size(); ++i)
     {
         if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
-            throw std::runtime_error("'root' directive must not have more than one argument: " + directive);
+            throw std::runtime_error("Config file syntax error: 'root' directive must not have more than one argument: " + directive);
     }
+
     _root = directive;
+    _seen_root = true;
 }
 
 void GlobalConfig::setClientMaxBodySize(std::string directive)
 {
-    trimWhitespace(directive, "; \t\n\r\f\v");
+    
+    if (_seen_client_max_body_size)
+        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive is duplicate: " + directive);
+
+    trim(directive, ";'\" \t\n\r\f\v");
     for (std::size_t i{0}; i < directive.size(); ++i)
     {
         if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
-            throw std::runtime_error("'client_max_body_size' directive must not have more than one argument: " + directive);
+            throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive must not have more than one argument: " + directive);
     }
 
     auto lastIndex{directive.length() - 1};
@@ -146,20 +159,25 @@ void GlobalConfig::setClientMaxBodySize(std::string directive)
     }
     catch (const std::exception &)
     {
-        throw std::runtime_error("Invalid 'client_max_body_size' directive value: " + directive);
+        throw std::runtime_error("Config file syntax error: Invalid 'client_max_body_size' directive value: " + directive);
     }
 
     if (remainingPos != directive.length())
-        throw std::runtime_error("Invalid 'client_max_body_size' directive value: " + directive);
+        throw std::runtime_error("Config file syntax error: Invalid 'client_max_body_size' directive value: " + directive);
 
     // * This can be removed if we can ensure that 0 size means no size checking by the server
     if (_client_max_body_size == 0)
         _client_max_body_size = std::numeric_limits<std::size_t>::max();
+
+    _seen_client_max_body_size = true;
 }
 
 void GlobalConfig::setAutoIndex(std::string directive)
 {
-    trimWhitespace(directive, "; \t\n\r\f\v");
+    if (_seen_autoindex)
+        throw std::runtime_error("Config file syntax error: 'autoindex' directive is duplicate: " + directive);
+
+    trim(directive, ";'\" \t\n\r\f\v");
 
     // Convert string to lowercase
     std::transform(directive.begin(), directive.end(), directive.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -169,17 +187,18 @@ void GlobalConfig::setAutoIndex(std::string directive)
     else if (directive == "off")
         _autoindex = false;
     else
-        throw std::runtime_error("Invalid 'autoindex' directive value: " + directive);
+        throw std::runtime_error("Config file syntax error: Invalid 'autoindex' directive value: " + directive);
+    _seen_autoindex = true;
 }
 
 void GlobalConfig::setErrorPage(std::string directive)
 {
-    trimWhitespace(directive, "; \t\n\r\f\v");
+    trim(directive, ";'\" \t\n\r\f\v");
 
     std::vector<std::string> args{splitStr(directive)};
 
     if (args.size() < 2)
-        throw std::runtime_error("Invalid 'error_page' directive value: " + directive);
+        throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive);
 
     std::string errorPageURI{args.back()};
     args.pop_back();
@@ -188,32 +207,32 @@ void GlobalConfig::setErrorPage(std::string directive)
     {
         int         errorNum;
         std::size_t remainingPos;
-        trimWhitespace(elem);
+        trim(elem);
         try
         {
             errorNum = std::stoi(elem, &remainingPos);
         }
         catch (const std::exception &)
         {
-            throw std::runtime_error("Invalid 'error_page' directive value: " + directive + ": Not a valid error code: " + elem);
+            throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive + ": Not a valid error code: " + elem);
         }
         if (remainingPos != elem.length())
-            throw std::runtime_error("Invalid 'error_page' directive value: " + directive + ": Not a valid number (error code): " + elem);
+            throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive + ": Not a valid number (error code): " + elem);
         if (errorNum < 300 || errorNum > 599)
-            throw std::runtime_error("Invalid 'error_page' directive value: " + directive + ": Value must be between 300 and 599: " + elem);
+            throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive + ": Value must be between 300 and 599: " + elem);
         _error_pages_map[errno] = errorPageURI;
     }
 }
 
 void GlobalConfig::setIndex(std::string directive)
 {
-    trimWhitespace(directive, "; \t\n\r\f\v");
+    trim(directive, ";'\" \t\n\r\f\v");
 
     std::vector<std::string> args{splitStr(directive)};
 
     for (auto &elem : args)
     {
-        trimWhitespace(elem);
+        trim(elem);
         _index_files_vec.push_back(elem);
     }
 }
@@ -231,7 +250,7 @@ std::string iFStreamToString(std::ifstream &file_stream)
         if (commentStart != std::string::npos)
             line.erase(commentStart);
 
-        trimWhitespace(line);
+        trim(line);
 
         if (line.empty())
             continue;
@@ -242,9 +261,9 @@ std::string iFStreamToString(std::ifstream &file_stream)
     return result;
 }
 
-void trimWhitespace(std::string &str, const std::string &whitespace)
+void trim(std::string &str, const std::string &charset)
 {
-    const auto firstNonSpace = str.find_first_not_of(whitespace);
+    const auto firstNonSpace = str.find_first_not_of(charset);
 
     if (firstNonSpace == std::string::npos)
     {
@@ -252,7 +271,7 @@ void trimWhitespace(std::string &str, const std::string &whitespace)
         return;
     }
 
-    const auto lastNonSpace = str.find_last_not_of(whitespace);
+    const auto lastNonSpace = str.find_last_not_of(charset);
     const auto strLen = lastNonSpace - firstNonSpace + 1;
 
     str = str.substr(firstNonSpace, strLen);

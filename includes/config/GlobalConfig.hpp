@@ -34,8 +34,14 @@ private:
     // `ServerConfig`s
     std::vector<ServerConfig> _serverConfigs{};
 
-    // `ServerConfig`s in string form for only for use in parser
+    // `ServerConfig`s in string form only for use in parser
     std::vector<std::string> _serverConfigsStr{};
+
+private:
+    // Represents whether a value has already been seen in the config file (only for parser)
+    bool _seen_root{false};
+    bool _seen_client_max_body_size{false};
+    bool _seen_autoindex{false};
 
 public:
     // OCF
@@ -66,5 +72,5 @@ private:
 
 // Helper functions
 std::string              iFStreamToString(std::ifstream &file_stream);
-void                     trimWhitespace(std::string &str, const std::string &whitespace = " \t\n\r\f\v");
+void                     trim(std::string &str, const std::string &charset = " \t\n\r\f\v");
 std::vector<std::string> splitStr(const std::string &str, const std::string &charset = " \t\n\r\f\v");
