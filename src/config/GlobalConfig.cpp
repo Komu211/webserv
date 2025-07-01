@@ -14,6 +14,38 @@ GlobalConfig::GlobalConfig(std::string file_name)
     parseConfFile(file_stream);
 }
 
+/* Getters */
+
+const std::string &GlobalConfig::getRoot() const
+{
+    return _root;
+}
+
+const std::vector<std::string> &GlobalConfig::getIndexFiles() const
+{
+    return _index_files_vec;
+}
+
+std::size_t GlobalConfig::getClientMaxBodySize() const
+{
+    return _client_max_body_size;
+}
+
+bool GlobalConfig::getAutoIndex() const
+{
+    return _autoindex;
+}
+
+const std::map<int, std::string> &GlobalConfig::getErrorPagesMap() const
+{
+    return _error_pages_map;
+}
+
+const std::vector<ServerConfig> &GlobalConfig::getServerConfigs() const
+{
+    return _serverConfigs;
+}
+
 void GlobalConfig::parseConfFile(std::ifstream &file_stream)
 {
     // Save entire file in a string
@@ -106,7 +138,7 @@ void GlobalConfig::setRoot(std::string directive)
 {
     if (_seen_root)
         throw std::runtime_error("Config file syntax error: 'root' directive is duplicate: " + directive);
-    
+
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'root' directive invalid number of arguments: " + directive);
 
@@ -115,7 +147,9 @@ void GlobalConfig::setRoot(std::string directive)
     for (std::size_t i{0}; i < directive.size(); ++i)
     {
         if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
-            throw std::runtime_error("Config file syntax error: 'root' directive must not have more than one argument: " + directive);
+            throw std::runtime_error("Config file syntax error: 'root' directive must not have more than one "
+                                     "argument: " +
+                                     directive);
     }
 
     _root = directive;
@@ -124,7 +158,6 @@ void GlobalConfig::setRoot(std::string directive)
 
 void GlobalConfig::setClientMaxBodySize(std::string directive)
 {
-    
     if (_seen_client_max_body_size)
         throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive is duplicate: " + directive);
 
@@ -132,7 +165,9 @@ void GlobalConfig::setClientMaxBodySize(std::string directive)
     for (std::size_t i{0}; i < directive.size(); ++i)
     {
         if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
-            throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive must not have more than one argument: " + directive);
+            throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive must not have more "
+                                     "than one argument: " +
+                                     directive);
     }
 
     auto lastIndex{directive.length() - 1};

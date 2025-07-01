@@ -34,14 +34,14 @@ private:
     // `ServerConfig`s
     std::vector<ServerConfig> _serverConfigs{};
 
-    // `ServerConfig`s in string form only for use in parser
-    std::vector<std::string> _serverConfigsStr{};
-
-private:
-    // Represents whether a value has already been seen in the config file (only for parser)
+private: // Data members for parser only
+    // Represents whether a value has already been seen in the config file
     bool _seen_root{false};
     bool _seen_client_max_body_size{false};
     bool _seen_autoindex{false};
+
+    // `ServerConfig`s in string form only for use in parser
+    std::vector<std::string> _serverConfigsStr{};
 
 public:
     // OCF
@@ -54,9 +54,15 @@ public:
     // Main parameterized constructor
     GlobalConfig(std::string file_name);
 
-    // ! Getters
+    // Getters
+    const std::string                &getRoot() const;
+    const std::vector<std::string>   &getIndexFiles() const;
+    std::size_t                       getClientMaxBodySize() const;
+    bool                              getAutoIndex() const;
+    const std::map<int, std::string> &getErrorPagesMap() const;
+    const std::vector<ServerConfig>  &getServerConfigs() const;
 
-private:
+private: // Member functions for parser only
     // Main parser
     void parseConfFile(std::ifstream &file_stream);
     // Helper used by parser
