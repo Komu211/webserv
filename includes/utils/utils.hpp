@@ -1,0 +1,14 @@
+#pragma once
+
+#include <fstream>
+#include <string>
+#include <vector>
+
+/* Trim the start and end of a string using a given charset (default whitespaces) */
+void trim(std::string &str, const std::string &charset = " \t\n\r\f\v");
+
+/* Split a string into a vector of "words" using a given delimiter (default whitespaces) */
+std::vector<std::string> splitStr(const std::string &str, const std::string &charset = " \t\n\r\f\v");
+
+/* Convert a given input file stream to std::string */
+std::string iFStreamToString(std::ifstream &file_stream);

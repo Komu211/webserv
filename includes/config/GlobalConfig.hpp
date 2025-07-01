@@ -10,11 +10,31 @@
 #include <stdexcept> /* std::runtime_error */
 #include <string>
 #include <vector>
+#include "utils.hpp"
 
 class ServerConfig;
 
 class GlobalConfig
 {
+public:
+    // Main parameterized constructor
+    GlobalConfig(std::string file_name);
+
+    // OCF
+    GlobalConfig() = delete;
+    GlobalConfig(const GlobalConfig &other) = default;
+    GlobalConfig &operator=(const GlobalConfig &other) = default;
+    GlobalConfig &operator=(GlobalConfig &&other) = default;
+    ~GlobalConfig() = default;
+
+    // Getters
+    const std::string                &getRoot() const;
+    const std::vector<std::string>   &getIndexFiles() const;
+    std::size_t                       getClientMaxBodySize() const;
+    bool                              getAutoIndex() const;
+    const std::map<int, std::string> &getErrorPagesMap() const;
+    const std::vector<ServerConfig>  &getServerConfigs() const;
+
 private:
     // Root directory for requests
     std::string _root{"./html"};
@@ -43,25 +63,6 @@ private: // Data members for parser only
     // `ServerConfig`s in string form only for use in parser
     std::vector<std::string> _serverConfigsStr{};
 
-public:
-    // OCF
-    GlobalConfig() = delete;
-    GlobalConfig(const GlobalConfig &other) = default;
-    GlobalConfig &operator=(const GlobalConfig &other) = default;
-    GlobalConfig &operator=(GlobalConfig &&other) = default;
-    ~GlobalConfig() = default;
-
-    // Main parameterized constructor
-    GlobalConfig(std::string file_name);
-
-    // Getters
-    const std::string                &getRoot() const;
-    const std::vector<std::string>   &getIndexFiles() const;
-    std::size_t                       getClientMaxBodySize() const;
-    bool                              getAutoIndex() const;
-    const std::map<int, std::string> &getErrorPagesMap() const;
-    const std::vector<ServerConfig>  &getServerConfigs() const;
-
 private: // Member functions for parser only
     // Main parser
     void parseConfFile(std::ifstream &file_stream);
@@ -75,8 +76,3 @@ private: // Member functions for parser only
     void setErrorPage(std::string directive);
     void setIndex(std::string directive);
 };
-
-// Helper functions
-std::string              iFStreamToString(std::ifstream &file_stream);
-void                     trim(std::string &str, const std::string &charset = " \t\n\r\f\v");
-std::vector<std::string> splitStr(const std::string &str, const std::string &charset = " \t\n\r\f\v");
