@@ -146,20 +146,13 @@ void GlobalConfig::setRoot(std::string directive)
         throw std::runtime_error("Config file syntax error: 'root' directive is duplicate: " + directive);
 
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);
 
-    if (directive.empty())
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
+
+    if (args.size() != 1)
         throw std::runtime_error("Config file syntax error: 'root' directive invalid number of arguments: " + directive);
 
-    for (std::size_t i{0}; i < directive.size(); ++i)
-    {
-        if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
-            throw std::runtime_error("Config file syntax error: 'root' directive must not have more than one "
-                                     "argument: " +
-                                     directive);
-    }
-
-    _root = directive;
+    _root = args[0];
     _seen_root = true;
 }
 
@@ -169,20 +162,13 @@ void GlobalConfig::setClientMaxBodySize(std::string directive)
         throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive is duplicate: " + directive);
 
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);
+    
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
-    if (directive.empty())
-        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of "
-                                 "arguments: " +
-                                 directive);
+    if (args.size() != 1)
+        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of arguments: " + directive);
 
-    for (std::size_t i{0}; i < directive.size(); ++i)
-    {
-        if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
-            throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive must not have more "
-                                     "than one argument: " +
-                                     directive);
-    }
+    directive = args[0];
 
     auto lastIndex{directive.length() - 1};
     if (directive[lastIndex] == 'k' || directive[lastIndex] == 'K')
@@ -244,9 +230,8 @@ void GlobalConfig::setAutoIndex(std::string directive)
 void GlobalConfig::setErrorPage(std::string directive)
 {
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);
 
-    std::vector<std::string> args{splitStr(directive)};
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
     if (args.size() < 2)
         throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive);
@@ -258,7 +243,6 @@ void GlobalConfig::setErrorPage(std::string directive)
     {
         int         errorNum;
         std::size_t remainingPos;
-        trim(elem);
         try
         {
             errorNum = std::stoi(elem, &remainingPos);
@@ -278,12 +262,11 @@ void GlobalConfig::setErrorPage(std::string directive)
 void GlobalConfig::setIndex(std::string directive)
 {
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);
 
-    if (directive.empty())
-        throw std::runtime_error("Config file syntax error: 'index' directive should have at least one argument.");
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
-    std::vector<std::string> args{splitStr(directive)};
+    if (args.empty())
+        throw std::runtime_error("Config file syntax error: 'index' directive invalid number of arguments: " + directive);
 
     // Remove default index
     if (!_seen_index)
@@ -292,7 +275,6 @@ void GlobalConfig::setIndex(std::string directive)
 
     for (auto &elem : args)
     {
-        trim(elem);
         _index_files_vec.push_back(elem);
     }
 }

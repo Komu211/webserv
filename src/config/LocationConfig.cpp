@@ -168,20 +168,13 @@ void LocationConfig::setRoot(std::string directive)
         throw std::runtime_error("Config file syntax error: 'root' directive is duplicate: " + directive);
 
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);;
 
-    if (directive.empty())
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
+
+    if (args.size() != 1)
         throw std::runtime_error("Config file syntax error: 'root' directive invalid number of arguments: " + directive);
 
-    for (std::size_t i{0}; i < directive.size(); ++i)
-    {
-        if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
-            throw std::runtime_error("Config file syntax error: 'root' directive must not have more than one "
-                                     "argument: " +
-                                     directive);
-    }
-
-    _root = directive;
+    _root = args[0];
     _seen_root = true;
 }
 
@@ -191,20 +184,13 @@ void LocationConfig::setClientMaxBodySize(std::string directive)
         throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive is duplicate: " + directive);
 
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);;
+    
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
-    if (directive.empty())
-        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of "
-                                 "arguments: " +
-                                 directive);
+    if (args.size() != 1)
+        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of arguments: " + directive);
 
-    for (std::size_t i{0}; i < directive.size(); ++i)
-    {
-        if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
-            throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive must not have more "
-                                     "than one argument: " +
-                                     directive);
-    }
+    directive = args[0];
 
     auto lastIndex{directive.length() - 1};
     if (directive[lastIndex] == 'k' || directive[lastIndex] == 'K')
@@ -266,9 +252,8 @@ void LocationConfig::setAutoIndex(std::string directive)
 void LocationConfig::setErrorPage(std::string directive)
 {
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);;
 
-    std::vector<std::string> args{splitStr(directive)};
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
     if (args.size() < 2)
         throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive);
@@ -285,7 +270,6 @@ void LocationConfig::setErrorPage(std::string directive)
     {
         int         errorNum;
         std::size_t remainingPos;
-        trim(elem);
         try
         {
             errorNum = std::stoi(elem, &remainingPos);
@@ -305,12 +289,11 @@ void LocationConfig::setErrorPage(std::string directive)
 void LocationConfig::setIndex(std::string directive)
 {
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);;
 
-    if (directive.empty())
-        throw std::runtime_error("Config file syntax error: 'index' directive should have at least one argument.");
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
-    std::vector<std::string> args{splitStr(directive)};
+    if (args.empty())
+        throw std::runtime_error("Config file syntax error: 'index' directive invalid number of arguments: " + directive);
 
     // Remove any index files inherited from server context to override them
     if (!_seen_index)
@@ -319,7 +302,6 @@ void LocationConfig::setIndex(std::string directive)
 
     for (auto &elem : args)
     {
-        trim(elem);
         _index_files_vec.push_back(elem);
     }
 }
@@ -330,16 +312,21 @@ void LocationConfig::setLimitExcept(std::string directive)
         throw std::runtime_error("Config file syntax error: 'limit_except' directive is duplicate: " + directive);
 
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);;
 
-    if (directive.empty())
-        throw std::runtime_error("Config file syntax error: 'limit_except' directive should have one argument.");
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
-    std::vector<std::string> args{splitStr(directive)};
+    if (args.empty())
+        throw std::runtime_error("Config file syntax error: 'limit_except' directive invalid number of arguments: " + directive);
 
     for (auto &elem : args)
     {
-        trim(elem);
+        // convert to lower case
+        std::transform(elem.begin(), elem.end(), elem.begin(), [](unsigned char c) { return std::tolower(c); });
+
+        // check if HTTP method is valid
+        if (!isHttpMethod(elem)) // ! Possible to allow methods other than GET, POST, and DELETE
+            throw std::runtime_error("Config file syntax error: 'limit_except' directive invalid method: " + elem);
+
         _limit_except.insert(elem);
     }
 }
@@ -350,20 +337,13 @@ void LocationConfig::setUploadStore(std::string directive)
         throw std::runtime_error("Config file syntax error: 'upload_store' directive is duplicate: " + directive);
 
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);;
 
-    if (directive.empty())
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
+
+    if (args.size() != 1)
         throw std::runtime_error("Config file syntax error: 'upload_store' directive invalid number of arguments: " + directive);
 
-    for (std::size_t i{0}; i < directive.size(); ++i)
-    {
-        if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
-            throw std::runtime_error("Config file syntax error: 'upload_store' directive must not have more than one "
-                                     "argument: " +
-                                     directive);
-    }
-
-    _upload_store = directive;
+    _upload_store = args[0];
     _seen_upload_store = true;
 }
 
@@ -373,15 +353,11 @@ void LocationConfig::setReturn(std::string directive)
         throw std::runtime_error("Config file syntax error: 'return' directive is duplicate: " + directive);
 
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);;
 
-    if (directive.empty())
-        throw std::runtime_error("Config file syntax error: 'return' directive invalid number of arguments: " + directive);
-
-    std::vector<std::string> args{splitStr(directive)};
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
     if (args.size() > 2)
-        throw std::runtime_error("Config file syntax error: 'return' directive invalid number of arguments: " + directive);
+        throw std::runtime_error("Config file syntax error: Invalid number of arguments in 'return' directive: " + directive);
 
     std::size_t remainingPos;
     try

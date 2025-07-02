@@ -208,12 +208,13 @@ void ServerConfig::initLocationConfig()
             throw std::runtime_error("Config file syntax error: 'location' directive invalid number of arguments: " + elem);
 
         std::string locName{elem.substr(0, openingBracePos)};
-        trimOuterSpacesAndQuotes(locName);
 
-        if (locName.empty())
-            throw std::runtime_error("Config file syntax error: 'location' directive is missing name of location: " + elem);
+        std::vector<std::string> args{splitStrExceptQuotes(locName)};
 
-        // ! Check that the first argument is really only one argument
+        if (args.size() != 1)
+            throw std::runtime_error("Config file syntax error: 'location' directive invalid number of arguments: " + elem);
+
+        locName = args[0];
 
         if (_locations_map.find(locName) != _locations_map.end())
             throw std::runtime_error("Config file syntax error: duplicate location: " + locName);
@@ -228,10 +229,13 @@ void ServerConfig::initLocationConfig()
 void ServerConfig::setListen(std::string directive)
 {
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);
 
-    if (directive.empty())
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
+
+    if (args.size() != 1)
         throw std::runtime_error("Config file syntax error: 'listen' directive invalid number of arguments: " + directive);
+    
+    directive = args[0];
 
     // Remove default listen ("0.0.0.0": "80")
     if (!_seen_listen)
@@ -332,19 +336,16 @@ void ServerConfig::setListen(std::string directive)
 void ServerConfig::setServerName(std::string directive)
 {
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);
 
-    if (directive.empty())
-        throw std::runtime_error("Config file syntax error: 'server_name' directive should have at least one "
-                                 "argument.");
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
-    std::vector<std::string> args{splitStr(directive)};
+    if (args.empty())
+        throw std::runtime_error("Config file syntax error: 'server_name' directive invalid number of arguments: " + directive);
 
     // * Maybe check and warn if server name is already present (inefficient for vector)
 
     for (auto &elem : args)
     {
-        trim(elem);
         _serverNames.push_back(elem);
     }
 }
@@ -355,20 +356,13 @@ void ServerConfig::setRoot(std::string directive)
         throw std::runtime_error("Config file syntax error: 'root' directive is duplicate: " + directive);
 
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);
 
-    if (directive.empty())
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
+
+    if (args.size() != 1)
         throw std::runtime_error("Config file syntax error: 'root' directive invalid number of arguments: " + directive);
 
-    for (std::size_t i{0}; i < directive.size(); ++i)
-    {
-        if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
-            throw std::runtime_error("Config file syntax error: 'root' directive must not have more than one "
-                                     "argument: " +
-                                     directive);
-    }
-
-    _root = directive;
+    _root = args[0];
     _seen_root = true;
 }
 
@@ -378,20 +372,13 @@ void ServerConfig::setClientMaxBodySize(std::string directive)
         throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive is duplicate: " + directive);
 
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);
+    
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
-    if (directive.empty())
-        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of "
-                                 "arguments: " +
-                                 directive);
+    if (args.size() != 1)
+        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of arguments: " + directive);
 
-    for (std::size_t i{0}; i < directive.size(); ++i)
-    {
-        if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
-            throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive must not have more "
-                                     "than one argument: " +
-                                     directive);
-    }
+    directive = args[0];
 
     auto lastIndex{directive.length() - 1};
     if (directive[lastIndex] == 'k' || directive[lastIndex] == 'K')
@@ -453,9 +440,8 @@ void ServerConfig::setAutoIndex(std::string directive)
 void ServerConfig::setErrorPage(std::string directive)
 {
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);
 
-    std::vector<std::string> args{splitStr(directive)};
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
     if (args.size() < 2)
         throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive);
@@ -472,7 +458,6 @@ void ServerConfig::setErrorPage(std::string directive)
     {
         int         errorNum;
         std::size_t remainingPos;
-        trim(elem);
         try
         {
             errorNum = std::stoi(elem, &remainingPos);
@@ -492,12 +477,11 @@ void ServerConfig::setErrorPage(std::string directive)
 void ServerConfig::setIndex(std::string directive)
 {
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);
 
-    if (directive.empty())
-        throw std::runtime_error("Config file syntax error: 'index' directive should have at least one argument.");
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
-    std::vector<std::string> args{splitStr(directive)};
+    if (args.empty())
+        throw std::runtime_error("Config file syntax error: 'index' directive invalid number of arguments: " + directive);
 
     // Remove any index files inherited from global context to override them
     if (!_seen_index)
@@ -506,7 +490,6 @@ void ServerConfig::setIndex(std::string directive)
 
     for (auto &elem : args)
     {
-        trim(elem);
         _index_files_vec.push_back(elem);
     }
 }
