@@ -114,24 +114,26 @@ void GlobalConfig::setConfigurationValue(std::string directive)
     std::string error_page{"error_page"};
     std::string index{"index"};
 
+    std::size_t nextWordPos;
+
     // Set server config (just save strings for now)
-    if (directive.compare(0, server.length(), server) == 0 && std::isspace(directive.at(server.length())))
-        _serverConfigsStr.push_back(directive.substr(server.length() + 1));
+    if (firstWordEquals(directive, server, &nextWordPos))
+        _serverConfigsStr.push_back(directive.substr(nextWordPos));
     // Set root
-    else if (directive.compare(0, root.length(), root) == 0 && std::isspace(directive.at(root.length())))
-        setRoot(directive.substr(root.length() + 1));
+    else if (firstWordEquals(directive, root, &nextWordPos))
+        setRoot(directive.substr(nextWordPos));
     // Set client_max_body_size
-    else if (directive.compare(0, client_max_body_size.length(), client_max_body_size) == 0  && std::isspace(directive.at(client_max_body_size.length())))
-        setClientMaxBodySize(directive.substr(client_max_body_size.length() + 1));
+    else if (firstWordEquals(directive, client_max_body_size, &nextWordPos))
+        setClientMaxBodySize(directive.substr(nextWordPos));
     // Set autoindex on or off
-    else if (directive.compare(0, autoindex.length(), autoindex) == 0 && std::isspace(directive.at(autoindex.length())))
-        setAutoIndex(directive.substr(autoindex.length() + 1));
+    else if (firstWordEquals(directive, autoindex, &nextWordPos))
+        setAutoIndex(directive.substr(nextWordPos));
     // Set error pages
-    else if (directive.compare(0, error_page.length(), error_page) == 0 && std::isspace(directive.at(error_page.length())))
-        setErrorPage(directive.substr(error_page.length() + 1));
+    else if (firstWordEquals(directive, error_page, &nextWordPos))
+        setErrorPage(directive.substr(nextWordPos));
     // Set index files
-    else if (directive.compare(0, index.length(), index) == 0 && std::isspace(directive.at(index.length())))
-        setIndex(directive.substr(index.length() + 1));
+    else if (firstWordEquals(directive, index, &nextWordPos))
+        setIndex(directive.substr(nextWordPos));
     else
         throw std::runtime_error("Config file syntax error: Disallowed directive in global context: " + directive);
 }
@@ -143,7 +145,8 @@ void GlobalConfig::setRoot(std::string directive)
     if (_seen_root)
         throw std::runtime_error("Config file syntax error: 'root' directive is duplicate: " + directive);
 
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'root' directive invalid number of arguments: " + directive);
@@ -165,7 +168,8 @@ void GlobalConfig::setClientMaxBodySize(std::string directive)
     if (_seen_client_max_body_size)
         throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive is duplicate: " + directive);
 
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of "
@@ -222,7 +226,8 @@ void GlobalConfig::setAutoIndex(std::string directive)
     if (_seen_autoindex)
         throw std::runtime_error("Config file syntax error: 'autoindex' directive is duplicate: " + directive);
 
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);
 
     // Convert string to lowercase
     std::transform(directive.begin(), directive.end(), directive.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -238,7 +243,8 @@ void GlobalConfig::setAutoIndex(std::string directive)
 
 void GlobalConfig::setErrorPage(std::string directive)
 {
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);
 
     std::vector<std::string> args{splitStr(directive)};
 
@@ -271,7 +277,8 @@ void GlobalConfig::setErrorPage(std::string directive)
 
 void GlobalConfig::setIndex(std::string directive)
 {
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'index' directive should have at least one argument.");

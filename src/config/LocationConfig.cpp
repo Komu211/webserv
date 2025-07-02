@@ -129,33 +129,33 @@ void LocationConfig::setConfigurationValue(std::string directive)
     std::string upload_store{"upload_store"};
     std::string return_directive{"return"};
 
+    std::size_t nextWordPos;
+
     // TODO: CGI handler
     // Set root
-    if (directive.compare(0, root.length(), root) == 0 && std::isspace(directive.at(root.length())))
-        setRoot(directive.substr(root.length() + 1));
+    if (firstWordEquals(directive, root, &nextWordPos))
+        setRoot(directive.substr(nextWordPos));
     // Set client_max_body_size
-    else if (directive.compare(0, client_max_body_size.length(), client_max_body_size) == 0 &&
-             std::isspace(directive.at(client_max_body_size.length())))
-        setClientMaxBodySize(directive.substr(client_max_body_size.length() + 1));
+    else if (firstWordEquals(directive, client_max_body_size, &nextWordPos))
+        setClientMaxBodySize(directive.substr(nextWordPos));
     // Set autoindex on or off
-    else if (directive.compare(0, autoindex.length(), autoindex) == 0 && std::isspace(directive.at(autoindex.length())))
-        setAutoIndex(directive.substr(autoindex.length() + 1));
+    else if (firstWordEquals(directive, autoindex, &nextWordPos))
+        setAutoIndex(directive.substr(nextWordPos));
     // Set error pages
-    else if (directive.compare(0, error_page.length(), error_page) == 0 && std::isspace(directive.at(error_page.length())))
-        setErrorPage(directive.substr(error_page.length() + 1));
+    else if (firstWordEquals(directive, error_page, &nextWordPos))
+        setErrorPage(directive.substr(nextWordPos));
     // Set index files
-    else if (directive.compare(0, index.length(), index) == 0 && std::isspace(directive.at(index.length())))
-        setIndex(directive.substr(index.length() + 1));
+    else if (firstWordEquals(directive, index, &nextWordPos))
+        setIndex(directive.substr(nextWordPos));
     // Set limit except
-    else if (directive.compare(0, limit_except.length(), limit_except) == 0 && std::isspace(directive.at(limit_except.length())))
-        setLimitExcept(directive.substr(limit_except.length() + 1));
+    else if (firstWordEquals(directive, limit_except, &nextWordPos))
+        setLimitExcept(directive.substr(nextWordPos));
     // Set upload storage location
-    else if (directive.compare(0, upload_store.length(), upload_store) == 0 && std::isspace(directive.at(upload_store.length())))
-        setUploadStore(directive.substr(upload_store.length() + 1));
+    else if (firstWordEquals(directive, upload_store, &nextWordPos))
+        setUploadStore(directive.substr(nextWordPos));
     // Set return directive
-    else if (directive.compare(0, return_directive.length(), return_directive) == 0 &&
-             std::isspace(directive.at(return_directive.length())))
-        setReturn(directive.substr(return_directive.length() + 1));
+    else if (firstWordEquals(directive, return_directive, &nextWordPos))
+        setReturn(directive.substr(nextWordPos));
     else
         throw std::runtime_error("Config file syntax error: Disallowed directive in location context: " + directive);
 }
@@ -167,7 +167,8 @@ void LocationConfig::setRoot(std::string directive)
     if (_seen_root)
         throw std::runtime_error("Config file syntax error: 'root' directive is duplicate: " + directive);
 
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);;
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'root' directive invalid number of arguments: " + directive);
@@ -189,7 +190,8 @@ void LocationConfig::setClientMaxBodySize(std::string directive)
     if (_seen_client_max_body_size)
         throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive is duplicate: " + directive);
 
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);;
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of "
@@ -246,7 +248,8 @@ void LocationConfig::setAutoIndex(std::string directive)
     if (_seen_autoindex)
         throw std::runtime_error("Config file syntax error: 'autoindex' directive is duplicate: " + directive);
 
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);;
 
     // Convert string to lowercase
     std::transform(directive.begin(), directive.end(), directive.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -262,7 +265,8 @@ void LocationConfig::setAutoIndex(std::string directive)
 
 void LocationConfig::setErrorPage(std::string directive)
 {
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);;
 
     std::vector<std::string> args{splitStr(directive)};
 
@@ -300,7 +304,8 @@ void LocationConfig::setErrorPage(std::string directive)
 
 void LocationConfig::setIndex(std::string directive)
 {
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);;
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'index' directive should have at least one argument.");
@@ -324,7 +329,8 @@ void LocationConfig::setLimitExcept(std::string directive)
     if (_seen_limit_except)
         throw std::runtime_error("Config file syntax error: 'limit_except' directive is duplicate: " + directive);
 
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);;
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'limit_except' directive should have one argument.");
@@ -343,7 +349,8 @@ void LocationConfig::setUploadStore(std::string directive)
     if (_seen_upload_store)
         throw std::runtime_error("Config file syntax error: 'upload_store' directive is duplicate: " + directive);
 
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);;
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'upload_store' directive invalid number of arguments: " + directive);
@@ -365,7 +372,8 @@ void LocationConfig::setReturn(std::string directive)
     if (_seen_return)
         throw std::runtime_error("Config file syntax error: 'return' directive is duplicate: " + directive);
 
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);;
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'return' directive invalid number of arguments: " + directive);

@@ -17,3 +17,6 @@ std::string iFStreamToString(std::ifstream &file_stream);
 
 /* Trim the outer spaces and then remove the outermost quotes */
 void trimOuterSpacesAndQuotes(std::string& str);
+
+/* Checked if the first word of `str` is equal to `comparison` without regard to the first word being quoted */
+bool firstWordEquals(const std::string& str, const std::string& comparison, std::size_t* next_word_pos = nullptr);

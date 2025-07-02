@@ -165,32 +165,33 @@ void ServerConfig::setConfigurationValue(std::string directive)
     std::string error_page{"error_page"};
     std::string index{"index"};
 
+    std::size_t nextWordPos;
+
     // TODO: CGI handler
     // Set listening host:port(s) for this server
-    if (directive.compare(0, listen.length(), listen) == 0 && std::isspace(directive.at(listen.length())))
-        setListen(directive.substr(listen.length() + 1));
+    if (firstWordEquals(directive, listen, &nextWordPos))
+        setListen(directive.substr(nextWordPos));
     // Set server names
-    else if (directive.compare(0, server_name.length(), server_name) == 0 && std::isspace(directive.at(server_name.length())))
-        setServerName(directive.substr(server_name.length() + 1));
+    else if (firstWordEquals(directive, server_name, &nextWordPos))
+        setServerName(directive.substr(nextWordPos));
     // Set location config (just save strings for now)
-    else if (directive.compare(0, location.length(), location) == 0 && std::isspace(directive.at(location.length())))
-        _locationConfigsStr.push_back(directive.substr(location.length() + 1));
+    else if (firstWordEquals(directive, location, &nextWordPos))
+        _locationConfigsStr.push_back(directive.substr(nextWordPos));
     // Set root
-    else if (directive.compare(0, root.length(), root) == 0 && std::isspace(directive.at(root.length())))
-        setRoot(directive.substr(root.length() + 1));
+    else if (firstWordEquals(directive, root, &nextWordPos))
+        setRoot(directive.substr(nextWordPos));
     // Set client_max_body_size
-    else if (directive.compare(0, client_max_body_size.length(), client_max_body_size) == 0 &&
-             std::isspace(directive.at(client_max_body_size.length())))
-        setClientMaxBodySize(directive.substr(client_max_body_size.length() + 1));
+    else if (firstWordEquals(directive, client_max_body_size, &nextWordPos))
+        setClientMaxBodySize(directive.substr(nextWordPos));
     // Set autoindex on or off
-    else if (directive.compare(0, autoindex.length(), autoindex) == 0 && std::isspace(directive.at(autoindex.length())))
-        setAutoIndex(directive.substr(autoindex.length() + 1));
+    else if (firstWordEquals(directive, autoindex, &nextWordPos))
+        setAutoIndex(directive.substr(nextWordPos));
     // Set error pages
-    else if (directive.compare(0, error_page.length(), error_page) == 0 && std::isspace(directive.at(error_page.length())))
-        setErrorPage(directive.substr(error_page.length() + 1));
+    else if (firstWordEquals(directive, error_page, &nextWordPos))
+        setErrorPage(directive.substr(nextWordPos));
     // Set index files
-    else if (directive.compare(0, index.length(), index) == 0 && std::isspace(directive.at(index.length())))
-        setIndex(directive.substr(index.length() + 1));
+    else if (firstWordEquals(directive, index, &nextWordPos))
+        setIndex(directive.substr(nextWordPos));
     else
         throw std::runtime_error("Config file syntax error: Disallowed directive in server context: " + directive);
 }
@@ -207,10 +208,12 @@ void ServerConfig::initLocationConfig()
             throw std::runtime_error("Config file syntax error: 'location' directive invalid number of arguments: " + elem);
 
         std::string locName{elem.substr(0, openingBracePos)};
-        trim(locName, "'\" \t\n\r\f\v");
+        trimOuterSpacesAndQuotes(locName);
 
         if (locName.empty())
             throw std::runtime_error("Config file syntax error: 'location' directive is missing name of location: " + elem);
+
+        // ! Check that the first argument is really only one argument
 
         if (_locations_map.find(locName) != _locations_map.end())
             throw std::runtime_error("Config file syntax error: duplicate location: " + locName);
@@ -224,7 +227,8 @@ void ServerConfig::initLocationConfig()
 
 void ServerConfig::setListen(std::string directive)
 {
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'listen' directive invalid number of arguments: " + directive);
@@ -327,7 +331,8 @@ void ServerConfig::setListen(std::string directive)
 
 void ServerConfig::setServerName(std::string directive)
 {
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'server_name' directive should have at least one "
@@ -349,7 +354,8 @@ void ServerConfig::setRoot(std::string directive)
     if (_seen_root)
         throw std::runtime_error("Config file syntax error: 'root' directive is duplicate: " + directive);
 
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'root' directive invalid number of arguments: " + directive);
@@ -371,7 +377,8 @@ void ServerConfig::setClientMaxBodySize(std::string directive)
     if (_seen_client_max_body_size)
         throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive is duplicate: " + directive);
 
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of "
@@ -428,7 +435,8 @@ void ServerConfig::setAutoIndex(std::string directive)
     if (_seen_autoindex)
         throw std::runtime_error("Config file syntax error: 'autoindex' directive is duplicate: " + directive);
 
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);
 
     // Convert string to lowercase
     std::transform(directive.begin(), directive.end(), directive.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -444,7 +452,8 @@ void ServerConfig::setAutoIndex(std::string directive)
 
 void ServerConfig::setErrorPage(std::string directive)
 {
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);
 
     std::vector<std::string> args{splitStr(directive)};
 
@@ -482,7 +491,8 @@ void ServerConfig::setErrorPage(std::string directive)
 
 void ServerConfig::setIndex(std::string directive)
 {
-    trim(directive, ";'\" \t\n\r\f\v");
+    trim(directive, ";");
+    trimOuterSpacesAndQuotes(directive);
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'index' directive should have at least one argument.");
