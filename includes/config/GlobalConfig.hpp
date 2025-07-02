@@ -59,6 +59,7 @@ private: // Data members for parser only
     bool _seen_root{false};
     bool _seen_client_max_body_size{false};
     bool _seen_autoindex{false};
+    bool _seen_index{false};
 
     // `ServerConfig`s in string form only for use in parser
     std::vector<std::string> _serverConfigsStr{};

@@ -278,6 +278,11 @@ void GlobalConfig::setIndex(std::string directive)
 
     std::vector<std::string> args{splitStr(directive)};
 
+    // Remove default index
+    if (!_seen_index)
+        _index_files_vec.clear();
+    _seen_index = true;
+
     for (auto &elem : args)
     {
         trim(elem);

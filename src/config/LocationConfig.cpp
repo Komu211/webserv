@@ -1,1 +1,400 @@
 #include "LocationConfig.hpp"
+
+// Main parameterized ctor (parses location_block_str, inherits the rest from server_config)
+LocationConfig::LocationConfig(const std::string &location_block_str, const ServerConfig &server_config)
+    : _root{server_config.getRoot()}
+    , _index_files_vec{server_config.getIndexFilesVec()}
+    , _client_max_body_size{server_config.getClientMaxBodySize()}
+    , _autoindex{server_config.getAutoIndex()}
+    , _error_pages_map{server_config.getErrorPagesMap()}
+// ! add CGI handler
+{
+    parseLocationConfig(location_block_str);
+}
+
+/* Getters */
+
+const std::string &LocationConfig::getRoot() const
+{
+    return _root;
+}
+
+const std::vector<std::string> &LocationConfig::getIndexFilesVec() const
+{
+    return _index_files_vec;
+}
+
+std::size_t LocationConfig::getClientMaxBodySize() const
+{
+    return _client_max_body_size;
+}
+
+bool LocationConfig::getAutoIndex() const
+{
+    return _autoindex;
+}
+
+const std::map<int, std::string> &LocationConfig::getErrorPagesMap() const
+{
+    return _error_pages_map;
+}
+
+// TODO CGI getter
+
+const std::set<std::string> &LocationConfig::getLimitExcept() const
+{
+    return _limit_except;
+}
+
+const std::string &LocationConfig::getUploadStore() const
+{
+    return _upload_store;
+}
+
+const std::pair<int, std::string> &LocationConfig::getReturn() const
+{
+    return _return;
+}
+
+/* Parsing logic */
+
+void LocationConfig::parseLocationConfig(std::string location_block_str)
+{
+    trim(location_block_str, " \t\n\r\f\v");
+    if (location_block_str.front() != '{' || location_block_str.back() != '}' || location_block_str.length() < 2)
+        throw std::runtime_error("Config file syntax error: 'location' directive's second argument should be enclosed "
+                                 "in "
+                                 "a single {}: " +
+                                 location_block_str);
+
+    // Remove the braces
+    location_block_str.erase(0, 1);
+    location_block_str.erase(location_block_str.length() - 1, 1);
+
+    trim(location_block_str, " \t\n\r\f\v");
+
+    int         curlyLevel{0};
+    std::size_t directiveStartPos{0};
+    std::size_t directiveEndPos{std::string::npos};
+
+    for (std::size_t index{0}; index < location_block_str.length(); ++index)
+    {
+        if (curlyLevel == 0 && location_block_str[index] == ';')
+        {
+            directiveEndPos = index;
+            setConfigurationValue(location_block_str.substr(directiveStartPos, index - directiveStartPos + 1));
+            directiveStartPos = index + 1;
+            continue;
+        }
+        if (location_block_str[index] == '{')
+            ++curlyLevel;
+        else if (location_block_str[index] == '}')
+        {
+            --curlyLevel;
+            if (curlyLevel == 0)
+            {
+                directiveEndPos = index;
+                setConfigurationValue(location_block_str.substr(directiveStartPos, index - directiveStartPos + 1));
+                directiveStartPos = index + 1;
+                continue;
+            }
+            else if (curlyLevel < 0)
+                throw std::runtime_error("Config file syntax error: Unexpected '}'");
+        }
+    }
+    if (curlyLevel > 0)
+        throw std::runtime_error("Config file syntax error: Unclosed '{'");
+    else if (curlyLevel < 0)
+        throw std::runtime_error("Config file syntax error: Unexpected '}'");
+    if (directiveEndPos != location_block_str.length() - 1)
+    {
+        std::string trailingContent{location_block_str.substr(directiveEndPos + 1)};
+        trim(trailingContent);
+        if (!trailingContent.empty())
+            throw std::runtime_error("Config file syntax error: Unexpected trailing content: " + trailingContent);
+    }
+}
+
+void LocationConfig::setConfigurationValue(std::string directive)
+{
+    trim(directive);
+
+    // TODO std::string cgi_handler{"cgi_handler"};
+    std::string root{"root"};
+    std::string client_max_body_size{"client_max_body_size"};
+    std::string autoindex{"autoindex"};
+    std::string error_page{"error_page"};
+    std::string index{"index"};
+    std::string limit_except{"limit_except"};
+    std::string upload_store{"upload_store"};
+    std::string return_directive{"return"};
+
+    // TODO: CGI handler
+    // Set root
+    if (directive.compare(0, root.length(), root) == 0 && std::isspace(directive.at(root.length())))
+        setRoot(directive.substr(root.length() + 1));
+    // Set client_max_body_size
+    else if (directive.compare(0, client_max_body_size.length(), client_max_body_size) == 0 &&
+             std::isspace(directive.at(client_max_body_size.length())))
+        setClientMaxBodySize(directive.substr(client_max_body_size.length() + 1));
+    // Set autoindex on or off
+    else if (directive.compare(0, autoindex.length(), autoindex) == 0 && std::isspace(directive.at(autoindex.length())))
+        setAutoIndex(directive.substr(autoindex.length() + 1));
+    // Set error pages
+    else if (directive.compare(0, error_page.length(), error_page) == 0 && std::isspace(directive.at(error_page.length())))
+        setErrorPage(directive.substr(error_page.length() + 1));
+    // Set index files
+    else if (directive.compare(0, index.length(), index) == 0 && std::isspace(directive.at(index.length())))
+        setIndex(directive.substr(index.length() + 1));
+    // Set limit except
+    else if (directive.compare(0, limit_except.length(), limit_except) == 0 && std::isspace(directive.at(limit_except.length())))
+        setLimitExcept(directive.substr(limit_except.length() + 1));
+    // Set upload storage location
+    else if (directive.compare(0, upload_store.length(), upload_store) == 0 && std::isspace(directive.at(upload_store.length())))
+        setUploadStore(directive.substr(upload_store.length() + 1));
+    // Set return directive
+    else if (directive.compare(0, return_directive.length(), return_directive) == 0 &&
+             std::isspace(directive.at(return_directive.length())))
+        setReturn(directive.substr(return_directive.length() + 1));
+    else
+        throw std::runtime_error("Config file syntax error: Disallowed directive in location context: " + directive);
+}
+
+/* Setters (used by parser) */
+
+void LocationConfig::setRoot(std::string directive)
+{
+    if (_seen_root)
+        throw std::runtime_error("Config file syntax error: 'root' directive is duplicate: " + directive);
+
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    if (directive.empty())
+        throw std::runtime_error("Config file syntax error: 'root' directive invalid number of arguments: " + directive);
+
+    for (std::size_t i{0}; i < directive.size(); ++i)
+    {
+        if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
+            throw std::runtime_error("Config file syntax error: 'root' directive must not have more than one "
+                                     "argument: " +
+                                     directive);
+    }
+
+    _root = directive;
+    _seen_root = true;
+}
+
+void LocationConfig::setClientMaxBodySize(std::string directive)
+{
+    if (_seen_client_max_body_size)
+        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive is duplicate: " + directive);
+
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    if (directive.empty())
+        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of "
+                                 "arguments: " +
+                                 directive);
+
+    for (std::size_t i{0}; i < directive.size(); ++i)
+    {
+        if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
+            throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive must not have more "
+                                     "than one argument: " +
+                                     directive);
+    }
+
+    auto lastIndex{directive.length() - 1};
+    if (directive[lastIndex] == 'k' || directive[lastIndex] == 'K')
+    {
+        directive.erase(lastIndex);
+        directive.append("000");
+    }
+    else if (directive[lastIndex] == 'm' || directive[lastIndex] == 'M')
+    {
+        directive.erase(lastIndex);
+        directive.append("000000");
+    }
+    else if (directive[lastIndex] == 'g' || directive[lastIndex] == 'G')
+    {
+        directive.erase(lastIndex);
+        directive.append("000000000");
+    }
+
+    std::size_t remainingPos;
+    try
+    {
+        _client_max_body_size = std::stoul(directive, &remainingPos);
+    }
+    catch (const std::exception &)
+    {
+        throw std::runtime_error("Config file syntax error: Invalid 'client_max_body_size' directive value: " + directive);
+    }
+
+    if (remainingPos != directive.length())
+        throw std::runtime_error("Config file syntax error: Invalid 'client_max_body_size' directive value: " + directive);
+
+    // * This can be removed if we can ensure that 0 size means no size checking by the server
+    if (_client_max_body_size == 0)
+        _client_max_body_size = std::numeric_limits<std::size_t>::max();
+
+    _seen_client_max_body_size = true;
+}
+
+void LocationConfig::setAutoIndex(std::string directive)
+{
+    if (_seen_autoindex)
+        throw std::runtime_error("Config file syntax error: 'autoindex' directive is duplicate: " + directive);
+
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    // Convert string to lowercase
+    std::transform(directive.begin(), directive.end(), directive.begin(), [](unsigned char c) { return std::tolower(c); });
+
+    if (directive == "on")
+        _autoindex = true;
+    else if (directive == "off")
+        _autoindex = false;
+    else
+        throw std::runtime_error("Config file syntax error: Invalid 'autoindex' directive value: " + directive);
+    _seen_autoindex = true;
+}
+
+void LocationConfig::setErrorPage(std::string directive)
+{
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    std::vector<std::string> args{splitStr(directive)};
+
+    if (args.size() < 2)
+        throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive);
+
+    std::string errorPageURI{args.back()};
+    args.pop_back();
+
+    // Remove any error pages inherited from server context to override them
+    if (!_seen_error_page)
+        _error_pages_map.clear();
+    _seen_error_page = true;
+
+    for (auto &elem : args)
+    {
+        int         errorNum;
+        std::size_t remainingPos;
+        trim(elem);
+        try
+        {
+            errorNum = std::stoi(elem, &remainingPos);
+        }
+        catch (const std::exception &)
+        {
+            throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive + ": Not a valid error code: " + elem);
+        }
+        if (remainingPos != elem.length())
+            throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive + ": Not a valid number (error code): " + elem);
+        if (errorNum < 300 || errorNum > 599)
+            throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive + ": Value must be between 300 and 599: " + elem);
+        _error_pages_map[errorNum] = errorPageURI;
+    }
+}
+
+void LocationConfig::setIndex(std::string directive)
+{
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    if (directive.empty())
+        throw std::runtime_error("Config file syntax error: 'index' directive should have at least one argument.");
+
+    std::vector<std::string> args{splitStr(directive)};
+
+    // Remove any index files inherited from server context to override them
+    if (!_seen_index)
+        _index_files_vec.clear();
+    _seen_index = true;
+
+    for (auto &elem : args)
+    {
+        trim(elem);
+        _index_files_vec.push_back(elem);
+    }
+}
+
+void LocationConfig::setLimitExcept(std::string directive)
+{
+    if (_seen_limit_except)
+        throw std::runtime_error("Config file syntax error: 'limit_except' directive is duplicate: " + directive);
+
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    if (directive.empty())
+        throw std::runtime_error("Config file syntax error: 'limit_except' directive should have one argument.");
+
+    std::vector<std::string> args{splitStr(directive)};
+
+    for (auto &elem : args)
+    {
+        trim(elem);
+        _limit_except.insert(elem);
+    }
+}
+
+void LocationConfig::setUploadStore(std::string directive)
+{
+    if (_seen_upload_store)
+        throw std::runtime_error("Config file syntax error: 'upload_store' directive is duplicate: " + directive);
+
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    if (directive.empty())
+        throw std::runtime_error("Config file syntax error: 'upload_store' directive invalid number of arguments: " + directive);
+
+    for (std::size_t i{0}; i < directive.size(); ++i)
+    {
+        if (std::isspace(directive[i]) && i > 0 && directive[i - 1] != '\\')
+            throw std::runtime_error("Config file syntax error: 'upload_store' directive must not have more than one "
+                                     "argument: " +
+                                     directive);
+    }
+
+    _upload_store = directive;
+    _seen_upload_store = true;
+}
+
+void LocationConfig::setReturn(std::string directive)
+{
+    if (_seen_return)
+        throw std::runtime_error("Config file syntax error: 'return' directive is duplicate: " + directive);
+
+    trim(directive, ";'\" \t\n\r\f\v");
+
+    if (directive.empty())
+        throw std::runtime_error("Config file syntax error: 'return' directive invalid number of arguments: " + directive);
+
+    std::vector<std::string> args{splitStr(directive)};
+
+    if (args.size() > 2)
+        throw std::runtime_error("Config file syntax error: 'return' directive invalid number of arguments: " + directive);
+
+    std::size_t remainingPos;
+    try
+    {
+        _return.first = std::stoi(args[0], &remainingPos);
+    }
+    catch (const std::exception &)
+    {
+        throw std::runtime_error("Config file syntax error: 'return' directive first argument should be numeric "
+                                 "(code): " +
+                                 directive);
+    }
+    if (remainingPos < args[0].length()) // Not all characters in the string are numeric
+        throw std::runtime_error("Config file syntax error: 'return' directive first argument should be numeric "
+                                 "(code): " +
+                                 directive);
+    if (_return.first < 0 || _return.first > 999)
+        throw std::runtime_error("Config file syntax error: 'return' directive invalid return code: " + directive);
+
+    if (args.size() == 2)
+        _return.second = args[1];
+
+    _seen_return = true;
+}

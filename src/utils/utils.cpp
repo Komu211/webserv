@@ -40,6 +40,7 @@ void trim(std::string &str, const std::string &charset)
     str = str.substr(firstNonSpace, strLen);
 }
 
+// ! Need to update default behavior to not open single or double quotes
 std::vector<std::string> splitStr(const std::string &str, const std::string &charset)
 {
     std::vector<std::string> result;

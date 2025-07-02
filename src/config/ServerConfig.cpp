@@ -19,6 +19,9 @@ ServerConfig::ServerConfig(const std::string &server_block_str, const GlobalConf
     parseServerConfig(server_block_str);
 
     // ! getaddrinfo
+
+    // Set locationConfigs using the strings saved earlier
+    initLocationConfig();
 }
 
 ServerConfig::~ServerConfig()
@@ -28,6 +31,16 @@ ServerConfig::~ServerConfig()
 
 /* Getters */
 
+const std::vector<std::pair<std::string, std::string>> &ServerConfig::getHostPortPairs() const
+{
+    return _listen_host_port;
+}
+
+const std::vector<struct addrinfo *> &ServerConfig::getAddrInfoVec() const
+{
+    return _addrinfo_lists_vec;
+}
+
 const std::string &ServerConfig::getRoot() const
 {
     return _root;
@@ -36,6 +49,31 @@ const std::string &ServerConfig::getRoot() const
 const std::vector<std::string> &ServerConfig::getServerNames() const
 {
     return _serverNames;
+}
+
+const std::vector<std::string> &ServerConfig::getIndexFilesVec() const
+{
+    return _index_files_vec;
+}
+
+std::size_t ServerConfig::getClientMaxBodySize() const
+{
+    return _client_max_body_size;
+}
+
+bool ServerConfig::getAutoIndex() const
+{
+    return _autoindex;
+}
+
+const std::map<int, std::string> &ServerConfig::getErrorPagesMap() const
+{
+    return _error_pages_map;
+}
+
+const std::map<std::string, LocationConfig> &ServerConfig::getLocationsMap() const
+{
+    return _locations_map;
 }
 
 // ! Need to update because server can listen to multiple host:ports combinations
@@ -65,8 +103,10 @@ void ServerConfig::parseServerConfig(std::string server_block_str)
         throw std::runtime_error("Config file syntax error: 'server' directive arguments should be enclosed in a "
                                  "single {}: " +
                                  server_block_str);
+    // Remove the braces
     server_block_str.erase(0, 1);
     server_block_str.erase(server_block_str.length() - 1, 1);
+
     trim(server_block_str, " \t\n\r\f\v");
 
     int         curlyLevel{0};
@@ -109,10 +149,6 @@ void ServerConfig::parseServerConfig(std::string server_block_str)
         if (!trailingContent.empty())
             throw std::runtime_error("Config file syntax error: Unexpected trailing content: " + trailingContent);
     }
-
-    // Set locationConfigs using the strings saved earlier
-    // for (auto &elem : _locationConfigsStr)
-    //     _locationConfigs.emplace_back(LocationConfig(elem, *this));
 }
 
 void ServerConfig::setConfigurationValue(std::string directive)
@@ -129,6 +165,7 @@ void ServerConfig::setConfigurationValue(std::string directive)
     std::string error_page{"error_page"};
     std::string index{"index"};
 
+    // TODO: CGI handler
     // Set listening host:port(s) for this server
     if (directive.compare(0, listen.length(), listen) == 0 && std::isspace(directive.at(listen.length())))
         setListen(directive.substr(listen.length() + 1));
@@ -158,6 +195,31 @@ void ServerConfig::setConfigurationValue(std::string directive)
         throw std::runtime_error("Config file syntax error: Disallowed directive in server context: " + directive);
 }
 
+void ServerConfig::initLocationConfig()
+{
+    for (auto &elem : _locationConfigsStr)
+    {
+        auto openingBracePos{elem.find('{')};
+
+        if (openingBracePos == std::string::npos)
+            throw std::runtime_error("Config file syntax error: 'location' directive has no opening '{': " + elem);
+        else if (openingBracePos < 1)
+            throw std::runtime_error("Config file syntax error: 'location' directive invalid number of arguments: " + elem);
+
+        std::string locName{elem.substr(0, openingBracePos)};
+        trim(locName, "'\" \t\n\r\f\v");
+
+        if (locName.empty())
+            throw std::runtime_error("Config file syntax error: 'location' directive is missing name of location: " + elem);
+
+        if (_locations_map.find(locName) != _locations_map.end())
+            throw std::runtime_error("Config file syntax error: duplicate location: " + locName);
+
+        // _locations_map[locName] = LocationConfig(elem.substr(openingBracePos), *this);
+        _locations_map.emplace(locName, LocationConfig(elem.substr(openingBracePos), *this));
+    }
+}
+
 /* Setters (used by parser) */
 
 void ServerConfig::setListen(std::string directive)
@@ -166,6 +228,11 @@ void ServerConfig::setListen(std::string directive)
 
     if (directive.empty())
         throw std::runtime_error("Config file syntax error: 'listen' directive invalid number of arguments: " + directive);
+
+    // Remove default listen ("0.0.0.0": "80")
+    if (!_seen_listen)
+        _listen_host_port.clear();
+    _seen_listen = true;
 
     std::string address;
     std::string port;
@@ -247,6 +314,14 @@ void ServerConfig::setListen(std::string directive)
 
     // Save the address and port in our vector of pairs
     std::pair<std::string, std::string> host_port{address, port};
+
+    // Ensure the host:port combination is not already present
+    for (auto &elem : _listen_host_port)
+    {
+        if (elem == host_port)
+            throw std::runtime_error("Config file syntax error: 'listen' directive has duplicate value: " + directive);
+    }
+
     _listen_host_port.emplace_back(std::move(host_port));
 }
 
@@ -259,6 +334,8 @@ void ServerConfig::setServerName(std::string directive)
                                  "argument.");
 
     std::vector<std::string> args{splitStr(directive)};
+
+    // * Maybe check and warn if server name is already present (inefficient for vector)
 
     for (auto &elem : args)
     {
@@ -378,9 +455,9 @@ void ServerConfig::setErrorPage(std::string directive)
     args.pop_back();
 
     // Remove any error pages inherited from global context to override them
-    if (_using_parent_error_pages_map)
+    if (!_seen_error_page)
         _error_pages_map.clear();
-    _using_parent_error_pages_map = false;
+    _seen_error_page = true;
 
     for (auto &elem : args)
     {
@@ -413,9 +490,9 @@ void ServerConfig::setIndex(std::string directive)
     std::vector<std::string> args{splitStr(directive)};
 
     // Remove any index files inherited from global context to override them
-    if (_using_parent_index_files_vec)
+    if (!_seen_index)
         _index_files_vec.clear();
-    _using_parent_index_files_vec = false;
+    _seen_index = true;
 
     for (auto &elem : args)
     {

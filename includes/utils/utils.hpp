@@ -7,6 +7,7 @@
 /* Trim the start and end of a string using a given charset (default whitespaces) */
 void trim(std::string &str, const std::string &charset = " \t\n\r\f\v");
 
+// ! Need to update default behavior to not open single or double quotes
 /* Split a string into a vector of "words" using a given delimiter (default whitespaces) */
 std::vector<std::string> splitStr(const std::string &str, const std::string &charset = " \t\n\r\f\v");
 
