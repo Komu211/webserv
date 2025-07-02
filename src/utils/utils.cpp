@@ -64,3 +64,24 @@ std::vector<std::string> splitStr(const std::string &str, const std::string &cha
     }
     return result;
 }
+
+void trimOuterSpacesAndQuotes(std::string& str)
+{
+    trim(str);
+
+    if (str.empty())
+        return;
+    
+    if (str[0] != '\'' && str[0] != '"')
+        return; // No outer quotes to trim
+
+    if (str.length() < 2) // opening quote is last char
+        return;
+
+    if (str.back() != str.front()) // Closing quote is not at the end
+        return;
+
+    // Finally remove the outer quotes
+    str.erase(0, 1);
+    str.erase(str.length() - 1, 1);
+}
