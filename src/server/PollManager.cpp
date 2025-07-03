@@ -8,7 +8,7 @@ pollfd *PollManager::data()
     return _pollfds.data();
 }
 
-size_t PollManager::size() const
+std::size_t PollManager::size() const
 {
     return _pollfds.size();
 }

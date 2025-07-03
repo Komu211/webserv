@@ -66,12 +66,12 @@ void Socket::set_host(const std::string &host)
     _host = host;
 }
 
-void Socket::set_port(const int port)
+void Socket::set_port(int port)
 {
     _port = port;
 }
 
-void Socket::set_fd(const int fd)
+void Socket::set_fd(int fd)
 {
     _fd = fd;
 }
@@ -83,6 +83,8 @@ void Socket::createSocket()
     {
         throw std::runtime_error("Failed to create socket: " + std::string{strerror(errno)});
     }
+
+    // Set socket option to reuse address
     int opt = 1;
     if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
@@ -91,9 +93,9 @@ void Socket::createSocket()
     }
 }
 
-void Socket::setNonBlocking() const
+void Socket::setNonBlocking()
 {
-    const int flags = fcntl(_fd, F_GETFL, 0);
+    int flags = fcntl(_fd, F_GETFL, 0); // ? is this flag allowed
     if (flags == -1)
     {
         close(_fd);
@@ -109,7 +111,8 @@ void Socket::setNonBlocking() const
 
 void Socket::bindSocket()
 {
-    struct sockaddr_in address = {};
+    // struct sockaddr_in address;
+    // std::memset(&address, 0, sizeof(address));
 
     // address.sin_family = AF_INET;
     // address.sin_port = htons(_port);
@@ -132,14 +135,14 @@ void Socket::bindSocket()
     //     }
     // }
 
-    if (bind(_fd, reinterpret_cast<struct sockaddr *>(&address), sizeof(address)) < 0)
+    if (bind(_fd, _addr_info_struct.ai_addr, _addr_info_struct.ai_addrlen) < 0)
     {
         close(_fd);
         throw std::runtime_error("Failed to bind socket to `" + _host + ":" + _port + "`: " + strerror(errno));
     }
 }
 
-void Socket::listenSocket(const int backlog) const
+void Socket::listenSocket(int backlog)
 {
     if (listen(_fd, backlog) < 0)
     {

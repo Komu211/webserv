@@ -13,7 +13,7 @@ private:
 public:
     PollManager();
     pollfd              *data();
-    [[nodiscard]] size_t size() const;
+    [[nodiscard]] std::size_t size() const;
     void                 addSocket(int fd, short events);
     void                 addServerSocket(int fd);
     void                 addClientSocket(int fd);

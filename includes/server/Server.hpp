@@ -22,22 +22,26 @@ class GlobalConfig;
 class Server
 {
 private:
-    std::vector<ServerConfig>                        _configs;
+    GlobalConfig                                     _global_config;
     std::unordered_map<int, std::unique_ptr<Socket>> _sockets;
     PollManager                                      _pollManager;
+
+    void acceptNewConnections(int serverFd, std::unordered_map<int, std::string> &clientRequests);
+    void readFromClient(int clientFd, std::unordered_map<int, std::string> &clientRequests, std::vector<int> &clientsToRemove);
+    void writeResponseToClient(int clientFd, std::unordered_map<int, std::string> &clientRequests);
 
 public:
     explicit Server(std::string configFileName);
     // explicit Server(std::vector<ServerConfig> configs); // ! remove
-    Server(const Server &src) = delete; // Cannot copy (has const members) and no need to copy
+    Server(const Server &src) = delete; // Cannot copy GlobalConfig and no need to copy
     Server(Server &&src) = default;
-    Server &operator=(const Server &src) = delete; // Cannot copy (has const members) and no need to copy
-    Server &operator=(Server &&src) = delete;      // Cannot copy/move (has const members) and no need to copy/move
+    Server &operator=(const Server &src) = delete; // Cannot copy GlobalConfig and no need to copy
+    Server &operator=(Server &&src) = delete;      // Cannot copy/move GlobalConfig and no need to copy/move
     ~Server() = default;
 
     // Getters and Setters
-    [[nodiscard]] std::vector<ServerConfig> get_configs() const;                                   // ! remove
-    void                                    set_configs(const std::vector<ServerConfig> &configs); // ! remove
+    // [[nodiscard]] std::vector<ServerConfig> get_configs() const;                                   // ! remove
+    // void                                    set_configs(const std::vector<ServerConfig> &configs); // ! remove
 
     void fillPollManager();
     void run();

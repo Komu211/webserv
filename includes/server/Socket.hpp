@@ -12,6 +12,7 @@
 #include <string>
 #include <sys/socket.h> /* socket() */
 #include <unistd.h>
+#include <fstream>
 
 // A pair of strings (used for host:port combinations)
 using StringPair = std::pair<std::string, std::string>;
@@ -20,16 +21,6 @@ using AddrInfoPair = std::pair<struct addrinfo, StringPair>;
 
 class Socket
 {
-private:
-    std::string _host;
-    int         _port;
-    int         _fd;
-
-    void createSocket();
-    void setNonBlocking() const;
-    void bindSocket();
-    void listenSocket(int backlog = 10) const;
-
 public:
     explicit Socket(const AddrInfoPair &addr_info_pair);
     // Socket(std::string host, int port); // ! remove

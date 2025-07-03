@@ -7,7 +7,6 @@ SRCS		=	main.cpp \
 				LocationConfig.cpp \
 				Socket.cpp \
 				PollManager.cpp \
-				ActiveSockets.cpp \
 				utils.cpp
 
 

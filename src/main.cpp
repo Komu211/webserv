@@ -34,19 +34,17 @@ int main(int argc, char **argv)
 
     try
     {
-        // GlobalConfig globalConfig{GlobalConfig(argv[1])}; // ! remove
         std::cout << "Hello from the wondrous webserv!" << '\n';
-        // ServerConfig config1; // ! remove
-        // ServerConfig config2; // ! remove
-        // ServerConfig config3; // ! remove
 
-    config2.setPort(8081);
-    config3.setPort(8082);
+        Server server{argv[1]};
+        server.fillPollManager();
+        server.run();
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error: " << e.what() << '\n';
+        return 1;
+    }
 
-    config3.setHost("0.0.0.0");
-
-    Server server({config1, config2, config3});
-    server.fillPollManager();
-    server.run();
     return (0);
 }
