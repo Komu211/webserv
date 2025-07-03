@@ -1,11 +1,17 @@
-VPATH		=	$(SRC_DIR):$(SRC_DIR)/server
+VPATH		=	$(SRC_DIR):$(SRC_DIR)/server:$(SRC_DIR)/config:$(SRC_DIR)/utils
 
 SRCS		=	main.cpp \
 				Server.cpp \
+				GlobalConfig.cpp \
 				ServerConfig.cpp \
+				LocationConfig.cpp \
 				Socket.cpp \
-				PollManager.cpp
+				PollManager.cpp \
+				ActiveSockets.cpp \
+				utils.cpp
 
 
 INCLUDES	=	-Iincludes \
-				-Iincludes/server
+				-Iincludes/server \
+				-Iincludes/config \
+				-Iincludes/utils 

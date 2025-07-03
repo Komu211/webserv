@@ -1,0 +1,180 @@
+#include "utils.hpp"
+
+// Helpers
+
+std::string iFStreamToString(std::ifstream &file_stream)
+{
+    std::string result{""};
+    std::string line;
+    while (std::getline(file_stream, line))
+    {
+        // Remove comments
+        auto commentStart{line.find('#')};
+        if (commentStart != std::string::npos)
+            line.erase(commentStart);
+
+        trim(line);
+
+        if (line.empty())
+            continue;
+
+        result.append(line);
+        result += ' ';
+    }
+    return result;
+}
+
+void trim(std::string &str, const std::string &charset)
+{
+    const auto firstNonSpace = str.find_first_not_of(charset);
+
+    if (firstNonSpace == std::string::npos)
+    {
+        str.clear();
+        return;
+    }
+
+    const auto lastNonSpace = str.find_last_not_of(charset);
+    const auto strLen = lastNonSpace - firstNonSpace + 1;
+
+    str = str.substr(firstNonSpace, strLen);
+}
+
+std::vector<std::string> splitStr(const std::string &str, const std::string &charset)
+{
+    std::vector<std::string> result;
+    std::size_t              wordStartPos{0};
+
+    for (std::size_t i{0}; i < str.length(); ++i)
+    {
+        if (i + 1 == str.length())
+        {
+            result.push_back(str.substr(wordStartPos));
+            wordStartPos = i + 1;
+        }
+        else if (charset.find(str[i]) != std::string::npos)
+        {
+            result.push_back(str.substr(wordStartPos, i - wordStartPos));
+            ++i;
+            while (charset.find(str[i]) != std::string::npos)
+                ++i;
+            wordStartPos = i;
+        }
+    }
+    return result;
+}
+
+std::vector<std::string> splitStrExceptQuotes(const std::string &str, const std::string &charset)
+{
+    std::vector<std::string> result;
+    std::string              currentToken;
+    char                     in_quote{0};
+    bool                     escaped{false};
+
+    for (char c : str)
+    {
+        if (escaped)
+        {
+            currentToken += c;
+            escaped = false;
+        }
+        else if (c == '\\')
+        {
+            escaped = true;
+        }
+        else if (in_quote)
+        {
+            if (c == in_quote)
+            {
+                in_quote = 0;
+            }
+            else
+            {
+                currentToken += c;
+            }
+        }
+        else if (c == '\'' || c == '\"')
+        {
+            in_quote = c;
+        }
+        else if (charset.find(c) != std::string::npos)
+        {
+            if (!currentToken.empty())
+            {
+                result.push_back(currentToken);
+                currentToken.clear();
+            }
+        }
+        else
+        {
+            currentToken += c;
+        }
+    }
+
+    if (in_quote)
+        throw std::runtime_error("Unclosed or unexpected quote in config file");
+    if (escaped)
+        throw std::runtime_error("Invalid escape character in config file");
+
+    if (!currentToken.empty())
+        result.push_back(currentToken);
+
+    return result;
+}
+
+void trimOuterSpacesAndQuotes(std::string &str)
+{
+    trim(str);
+
+    if (str.empty())
+        return;
+
+    if (str[0] != '\'' && str[0] != '"')
+        return; // No outer quotes to trim
+
+    if (str.length() < 2) // opening quote is last char
+        return;
+
+    if (str.back() != str.front()) // Closing quote is not at the end
+        return;
+
+    // Finally remove the outer quotes
+    str.erase(0, 1);
+    str.erase(str.length() - 1, 1);
+}
+
+bool firstWordEquals(const std::string &str, const std::string &comparison, std::size_t *next_word_pos)
+{
+    if (str.compare(0, comparison.length(), comparison) == 0 && std::isspace(str.at(comparison.length())))
+    {
+        if (next_word_pos)
+            *next_word_pos = comparison.length() + 1;
+        return true;
+    }
+
+    std::string singQuoted{"'" + comparison + "'"};
+    if (str.compare(0, singQuoted.length(), singQuoted) == 0 && std::isspace(str.at(singQuoted.length())))
+    {
+        if (next_word_pos)
+            *next_word_pos = singQuoted.length() + 1;
+        return true;
+    }
+
+    std::string doubQuoted{"\"" + comparison + "\""};
+    if (str.compare(0, doubQuoted.length(), doubQuoted) == 0 && std::isspace(str.at(doubQuoted.length())))
+    {
+        *next_word_pos = doubQuoted.length() + 1;
+        return true;
+    }
+
+    if (next_word_pos)
+        *next_word_pos = 0;
+    return false;
+}
+
+bool isHttpMethod(const std::string &str)
+{
+    static const std::set<std::string> http_methods = {"get",     "post",  "delete", "put",    "head",
+                                                       "options", "patch", "trace",  "connect"};
+    return http_methods.count(str) > 0;
+}

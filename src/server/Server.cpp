@@ -2,9 +2,12 @@
 
 #include <fstream>
 
+#include <fstream>
+
 Server::Server(std::vector<ServerConfig> configs) : _configs(std::move(configs))
 {
-    for (const auto &config : _configs)
+    // Create listening sockets
+    for (const auto &server_config : _global_config.getServerConfigs())
     {
         auto newSocket = std::make_unique<Socket>(config.getHost(), config.getPort());
         bool exists = false;
@@ -71,12 +74,16 @@ void Server::run()
         const int pollResult = poll(_pollManager.data(), _pollManager.size(), -1);
         if (pollResult < 0)
         {
-            std::cerr << "Poll error: " << strerror(errno) << std::endl;
+            // poll() was interrupted by a signal. Check g_shutdownServer flag in loop condition
+            if (errno == EINTR)
+                continue;
+
+            std::cerr << "Poll error: " << strerror(errno) << '\n';
             continue;
         }
         if (pollResult == 0)
         {
-            std::cout << "No events occurred within the timeout." << std::endl;
+            std::cout << "No events occurred within the timeout." << '\n';
             continue;
         }
 
