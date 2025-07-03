@@ -35,16 +35,15 @@ int main(int argc, char **argv)
     try
     {
         GlobalConfig globalConfig{GlobalConfig(argv[1])};
-        return 0; // ! for testing
-        std::cout << "Hello from the wondrous webserv!" << std::endl;
-        ServerConfig config1; // ! remove
-        ServerConfig config2; // ! remove
-        ServerConfig config3; // ! remove
+        std::cout << "Hello from the wondrous webserv!" << '\n';
+        // ServerConfig config1; // ! remove
+        // ServerConfig config2; // ! remove
+        // ServerConfig config3; // ! remove
 
-        config2.setPort(8081); // ! remove
-        config3.setPort(8082); // ! remove
+        // config2.setPort(8081); // ! remove
+        // config3.setPort(8082); // ! remove
 
-        Server server({config1, config2, config3}); // ! pass globalConfig instead
+        Server server{globalConfig};
         server.fillActiveSockets();
         server.run();
     }

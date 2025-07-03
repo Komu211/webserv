@@ -1,11 +1,19 @@
 #include "Socket.hpp"
 
-Socket::Socket(std::string host, int port)
-    : _host(std::move(host))
-    , _port(port)
-    , _fd(-1)
+Socket::Socket(const AddrInfoPair &addr_info_pair)
+    : _addr_info_struct{addr_info_pair.first}
+    , _host{addr_info_pair.second.first}
+    , _port{addr_info_pair.second.second}
+    , _fd{-1}
 {
 }
+
+// Socket::Socket(std::string host, int port)
+//     : _host(std::move(host))
+//     , _port(port)
+//     , _fd(-1)
+// {
+// }
 
 Socket::~Socket()
 {
@@ -17,7 +25,15 @@ Socket::~Socket()
 
 bool Socket::operator==(const Socket &other) const
 {
-    return _host == other._host && _port == other._port;
+    // return _host == other._host && _port == other._port;
+    return _addr_info_struct.ai_addr == other._addr_info_struct.ai_addr &&
+           _addr_info_struct.ai_addrlen == other._addr_info_struct.ai_addrlen &&
+           _addr_info_struct.ai_canonname == other._addr_info_struct.ai_canonname &&
+           _addr_info_struct.ai_family == other._addr_info_struct.ai_family &&
+           _addr_info_struct.ai_flags == other._addr_info_struct.ai_flags &&
+           _addr_info_struct.ai_next == other._addr_info_struct.ai_next &&
+           _addr_info_struct.ai_protocol == other._addr_info_struct.ai_protocol &&
+           _addr_info_struct.ai_socktype == other._addr_info_struct.ai_socktype;
 }
 
 bool Socket::operator!=(const Socket &other) const
@@ -30,10 +46,15 @@ std::string Socket::get_host() const
     return _host;
 }
 
-int Socket::get_port() const
+std::string Socket::get_port() const
 {
     return _port;
 }
+
+// int Socket::get_port() const
+// {
+//     return _port;
+// }
 
 int Socket::get_fd() const
 {
@@ -57,7 +78,7 @@ void Socket::set_fd(int fd)
 
 void Socket::createSocket()
 {
-    _fd = socket(AF_INET, SOCK_STREAM, 0);
+    _fd = socket(_addr_info_struct.ai_family, _addr_info_struct.ai_socktype, _addr_info_struct.ai_protocol);
     if (_fd < 0)
     {
         throw std::runtime_error("Failed to create socket");
@@ -90,34 +111,34 @@ void Socket::setNonBlocking()
 
 void Socket::bindSocket()
 {
-    struct sockaddr_in address;
-    std::memset(&address, 0, sizeof(address));
+    // struct sockaddr_in address;
+    // std::memset(&address, 0, sizeof(address));
 
-    address.sin_family = AF_INET;
-    address.sin_port = htons(_port);
+    // address.sin_family = AF_INET;
+    // address.sin_port = htons(_port);
 
-    // Convert host string to network address
-    if (_host == "localhost" || _host == "127.0.0.1")
-    {
-        address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    }
-    else if (_host == "0.0.0.0" || _host.empty())
-    {
-        address.sin_addr.s_addr = htonl(INADDR_ANY);
-    }
-    else
-    {
-        if (inet_pton(AF_INET, _host.c_str(), &address.sin_addr) <= 0) // ! forbidden function
-        {
-            close(_fd);
-            throw std::runtime_error("Invalid address: " + _host);
-        }
-    }
+    // // Convert host string to network address
+    // if (_host == "localhost" || _host == "127.0.0.1")
+    // {
+    //     address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    // }
+    // else if (_host == "0.0.0.0" || _host.empty())
+    // {
+    //     address.sin_addr.s_addr = htonl(INADDR_ANY);
+    // }
+    // else
+    // {
+    //     if (inet_pton(AF_INET, _host.c_str(), &address.sin_addr) <= 0) // ! forbidden function
+    //     {
+    //         close(_fd);
+    //         throw std::runtime_error("Invalid address: " + _host);
+    //     }
+    // }
 
-    if (bind(_fd, (struct sockaddr *) &address, sizeof(address)) < 0)
+    if (bind(_fd, _addr_info_struct.ai_addr, _addr_info_struct.ai_addrlen) < 0)
     {
         close(_fd);
-        throw std::runtime_error("Failed to bind socket to " + _host + ":" + std::to_string(_port));
+        throw std::runtime_error("Failed to bind socket to " + _host + ":" + _port);
     }
 }
 
@@ -138,11 +159,11 @@ void Socket::initSocket()
         setNonBlocking();
         bindSocket();
         listenSocket();
-        std::cout << "Socket initialized successfully on " << _host << ":" << _port << std::endl;
+        std::cout << "Socket initialized successfully on " << _host << ":" << _port << '\n';
     }
     catch (const std::exception &e)
     {
-        std::cerr << "Socket initialization error: " << e.what() << std::endl;
+        std::cerr << "Socket initialization error: " << e.what() << '\n';
         if (_fd != -1)
         {
             close(_fd);

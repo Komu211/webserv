@@ -33,12 +33,12 @@ ServerConfig::~ServerConfig()
 
 /* Getters */
 
-const std::vector<std::pair<std::string, std::string>> &ServerConfig::getHostPortPairs() const
+const std::vector<StringPair> &ServerConfig::getHostPortPairs() const
 {
     return _listen_host_port;
 }
 
-const std::vector<struct addrinfo> &ServerConfig::getAddrInfoVec() const
+const std::vector<AddrInfoPair> &ServerConfig::getAddrInfoVec() const
 {
     return _addrinfo_vec;
 }
@@ -223,7 +223,7 @@ void ServerConfig::setAddrInfo()
 
         // Save each `struct addrinfo` to be used with socket(), bind(), listen(), etc. later
         for (auto cur{res}; cur != NULL; cur = cur->ai_next)
-            _addrinfo_vec.push_back(*cur);
+            _addrinfo_vec.emplace_back(*cur, hostPort);
     }
 }
 
@@ -352,7 +352,7 @@ void ServerConfig::setListen(std::string directive)
         throw std::runtime_error("An error occurred while parsing 'listen' directive: " + directive);
 
     // Save the address and port in our vector of pairs
-    std::pair<std::string, std::string> host_port{address, port};
+    StringPair host_port{address, port};
 
     // Ensure the host:port combination is not already present
     for (auto &elem : _listen_host_port)

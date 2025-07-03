@@ -12,6 +12,11 @@
 #include <vector>
 // #include <unordered_set> /* Better use unordered_set for _listen_host_port and _serverNames */
 
+// A pair of strings (used for host:port combinations)
+using StringPair = std::pair<std::string, std::string>;
+// Pair of `struct addrinfo` and human-readable host:port strings
+using AddrInfoPair = std::pair<struct addrinfo, StringPair>;
+
 class GlobalConfig;
 class LocationConfig;
 
@@ -29,15 +34,15 @@ public:
     ~ServerConfig();
 
 public:
-    [[nodiscard]] const std::vector<std::pair<std::string, std::string>> &getHostPortPairs() const;
-    [[nodiscard]] const std::vector<struct addrinfo>                     &getAddrInfoVec() const;
-    [[nodiscard]] const std::string                                      &getRoot() const;
-    [[nodiscard]] const std::vector<std::string>                         &getServerNames() const;
-    [[nodiscard]] const std::vector<std::string>                         &getIndexFilesVec() const;
-    [[nodiscard]] std::size_t                                             getClientMaxBodySize() const;
-    [[nodiscard]] bool                                                    getAutoIndex() const;
-    [[nodiscard]] const std::map<int, std::string>                       &getErrorPagesMap() const;
-    [[nodiscard]] const std::map<std::string, LocationConfig>            &getLocationsMap() const;
+    [[nodiscard]] const std::vector<StringPair>               &getHostPortPairs() const;
+    [[nodiscard]] const std::vector<AddrInfoPair>             &getAddrInfoVec() const;
+    [[nodiscard]] const std::string                           &getRoot() const;
+    [[nodiscard]] const std::vector<std::string>              &getServerNames() const;
+    [[nodiscard]] const std::vector<std::string>              &getIndexFilesVec() const;
+    [[nodiscard]] std::size_t                                  getClientMaxBodySize() const;
+    [[nodiscard]] bool                                         getAutoIndex() const;
+    [[nodiscard]] const std::map<int, std::string>            &getErrorPagesMap() const;
+    [[nodiscard]] const std::map<std::string, LocationConfig> &getLocationsMap() const;
     // TODO cgi getter
 
     // ! remove the below getters
@@ -49,10 +54,10 @@ public:
 
 private:
     // All `host:port` combinations this server listens to // * Better convert to unordered_set or unordered_map
-    std::vector<std::pair<std::string, std::string>> _listen_host_port{{"0.0.0.0", "80"}};
+    std::vector<StringPair> _listen_host_port{{"0.0.0.0", "80"}};
 
     // All `host:port` combinations this server listens to (in their addrinfo form)
-    std::vector<struct addrinfo> _addrinfo_vec{};
+    std::vector<AddrInfoPair> _addrinfo_vec{};
 
     // All `server_name`s (Host header) this server responds to // * Better convert to unordered_set
     std::vector<std::string> _serverNames{};

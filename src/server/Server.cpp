@@ -1,31 +1,63 @@
 #include "Server.hpp"
 
-Server::Server(std::vector<ServerConfig> configs)
-    : _configs(std::move(configs))
+Server::Server(const GlobalConfig& global_config)
+: _global_config{global_config}
 {
-    for (const auto &config : _configs)
+    for (const auto &server_config : _global_config.getServerConfigs())
     {
-        auto newSocket = std::make_unique<Socket>(config.getHost(), config.getPort());
-        bool exists = false;
-        for (const auto &existingSocket : _sockets)
+        // Each server_config can be listening on multiple host_port combinations
+        for (auto& addr_info_pair : server_config.getAddrInfoVec())
         {
-            if (*existingSocket == *newSocket)
-                exists = true;
+            auto newSocket = std::make_unique<Socket>(addr_info_pair);
+            bool exists = false;
+            for (const auto &existingSocket : _sockets)
+            {
+                if (*existingSocket == *newSocket)
+                    exists = true;
+            }
+            if (exists)
+                continue;
+            try
+            {
+                newSocket->initSocket();
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error initializing socket: " << e.what() << '\n';
+                continue;
+            }
+            _sockets.insert(std::move(newSocket));
         }
-        if (exists)
-            continue;
-        try
-        {
-            newSocket->initSocket();
-        }
-        catch (const std::runtime_error &e)
-        {
-            std::cerr << "Error initializing socket: " << e.what() << std::endl;
-            continue;
-        }
-        _sockets.insert(std::move(newSocket));
     }
 }
+
+// ! remove
+// Server::Server(std::vector<ServerConfig> configs)
+//     : _configs(std::move(configs))
+// {
+//     for (const auto &config : _configs)
+//     {
+//         auto newSocket = std::make_unique<Socket>(config.getHost(), config.getPort());
+//         bool exists = false;
+//         for (const auto &existingSocket : _sockets)
+//         {
+//             if (*existingSocket == *newSocket)
+//                 exists = true;
+//         }
+//         if (exists)
+//             continue;
+//         try
+//         {
+//             newSocket->initSocket();
+//         }
+//         catch (const std::runtime_error &e)
+//         {
+//             std::cerr << "Error initializing socket: " << e.what() << '\n';
+//             continue;
+//         }
+//         _sockets.insert(std::move(newSocket));
+//     }
+// }
 
 // * Getter not needed
 // * Inefficient: making a copy of vector on every return (use const std::vector<>&)
@@ -51,7 +83,7 @@ void Server::fillActiveSockets()
 
 void Server::run()
 {
-    std::cout << "Server is running..." << std::endl;
+    std::cout << "Server is running..." << '\n';
     while (g_shutdownServer == 0)
     {
         /*
@@ -64,10 +96,10 @@ void Server::run()
          * 6. Close finished and timeout connections
          */
 
-        // std::cout << "Waiting for requests on sockets: " << std::endl;
+        // std::cout << "Waiting for requests on sockets: " << '\n';
         // for (const auto &sockPtr : _sockets)
         // {
-        //     std::cout << *sockPtr << std::endl;
+        //     std::cout << *sockPtr << '\n';
         // }
         const int pollResult = poll(_activeSockets.data(), _activeSockets.size(), -1);
         if (pollResult < 0)
@@ -76,12 +108,12 @@ void Server::run()
             if (errno == EINTR)
                 continue;
 
-            std::cerr << "Poll error: " << strerror(errno) << std::endl;
+            std::cerr << "Poll error: " << strerror(errno) << '\n';
             continue;
         }
         if (pollResult == 0)
         {
-            std::cout << "No events occurred within the timeout." << std::endl;
+            std::cout << "No events occurred within the timeout." << '\n';
             continue;
         }
         for (auto &pollFd : _activeSockets.getPollFDs())
@@ -91,13 +123,13 @@ void Server::run()
                 int clientFd = accept(pollFd.fd, nullptr, nullptr);
                 if (clientFd >= 0)
                 {
-                    std::cout << "Accepted new connection: " << clientFd << std::endl;
+                    std::cout << "Accepted new connection: " << clientFd << '\n';
                     char    buffer[1024];
                     ssize_t bytesRead = read(clientFd, buffer, sizeof(buffer) - 1);
                     if (bytesRead > 0)
                     {
                         buffer[bytesRead] = '\0';
-                        std::cout << "Received request:\n" << buffer << std::endl;
+                        std::cout << "Received request:\n" << buffer << '\n';
                     }
 
                     std::string response = "HTTP/1.1 200 OK\r\n"
@@ -106,11 +138,11 @@ void Server::run()
                                            "\r\n"
                                            "Hello, world!";
                     send(clientFd, response.c_str(), response.size(), 0);
-                    close(clientFd);
+                    // close(clientFd);
                 }
                 else
                 {
-                    std::cerr << "Accept error: " << strerror(errno) << std::endl;
+                    std::cerr << "Accept error: " << strerror(errno) << '\n';
                 }
             }
         }
