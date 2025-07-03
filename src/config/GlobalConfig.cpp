@@ -100,7 +100,7 @@ void GlobalConfig::parseConfFile(std::ifstream &file_stream)
     for (auto &elem : _serverConfigsStr)
         _serverConfigs.emplace_back(std::make_unique<ServerConfig>(elem, *this));
 
-    // * Maybe warn if any host:port - server_name pairs are duplicate
+    // ? Maybe warn if any host:port - server_name pairs are duplicate
 }
 
 void GlobalConfig::setConfigurationValue(std::string directive)

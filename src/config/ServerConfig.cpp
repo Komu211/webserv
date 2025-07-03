@@ -19,8 +19,6 @@ ServerConfig::ServerConfig(const std::string &server_block_str, const GlobalConf
 {
     parseServerConfig(server_block_str);
 
-    // TODO: Check that there are no duplicates in listening addresses (ignore)
-
     // Convert all provided `listen` host:port combinations to `struct addrinfo`; throw on error
     setAddrInfo();
 

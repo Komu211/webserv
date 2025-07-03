@@ -138,7 +138,7 @@ void Socket::bindSocket()
     if (bind(_fd, _addr_info_struct.ai_addr, _addr_info_struct.ai_addrlen) < 0)
     {
         close(_fd);
-        throw std::runtime_error("Failed to bind socket to " + _host + ":" + _port + " : " + strerror(errno));
+        throw std::runtime_error("Failed to bind socket to `" + _host + ":" + _port + "`: " + strerror(errno));
     }
 }
 

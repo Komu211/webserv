@@ -84,7 +84,7 @@ void Server::fillActiveSockets()
 
 void Server::run()
 {
-    std::cout << "Server is started successfully. Listening on " << _activeSockets.size() << " addresses..." << '\n';
+    std::cout << "Server started successfully. Listening on " << _activeSockets.size() << " address" << ((_activeSockets.size() > 1) ? "es..." : "...") << '\n';
     // TODO: Add printing of host:port of sockets currently being listened to
 
     // * check if server starts with listening to 0 connections
