@@ -1,9 +1,9 @@
 #pragma once
 
 #include "ActiveSockets.hpp"
+#include "GlobalConfig.hpp"
 #include "ServerConfig.hpp"
 #include "Socket.hpp"
-#include <GlobalConfig.hpp>
 #include <chrono>
 #include <csignal>
 #include <iostream>
@@ -23,13 +23,13 @@ class GlobalConfig;
 class Server
 {
 private:
-    const GlobalConfig                         &_global_config;
+    GlobalConfig                                _global_config;
     std::vector<ServerConfig>                   _configs; // ! remove
     std::unordered_set<std::unique_ptr<Socket>> _sockets;
     ActiveSockets                               _activeSockets;
 
 public:
-    explicit Server(const GlobalConfig &global_config);
+    explicit Server(std::string configFileName);
     // explicit Server(std::vector<ServerConfig> configs); // ! remove
     Server(const Server &src) = delete; // Cannot copy (has const members) and no need to copy
     Server(Server &&src) = default;

@@ -17,8 +17,9 @@ public:
 
     // OCF
     LocationConfig() = delete;
-    LocationConfig(const LocationConfig &other) = default;
-    LocationConfig &operator=(const LocationConfig &other) = default;
+    LocationConfig(const LocationConfig &other) = delete;
+    LocationConfig(LocationConfig &&other) = default;
+    LocationConfig &operator=(const LocationConfig &other) = delete;
     LocationConfig &operator=(LocationConfig &&other) = default;
     ~LocationConfig() = default;
 

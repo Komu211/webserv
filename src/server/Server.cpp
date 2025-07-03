@@ -1,12 +1,13 @@
 #include "Server.hpp"
 
-Server::Server(const GlobalConfig& global_config)
-: _global_config{global_config}
+Server::Server(std::string configFileName)
+    : _global_config{configFileName} // Initiate parsing of the config file
 {
+    // Create listening sockets
     for (const auto &server_config : _global_config.getServerConfigs())
     {
         // Each server_config can be listening on multiple host_port combinations
-        for (auto& addr_info_pair : server_config.getAddrInfoVec())
+        for (auto &addr_info_pair : server_config->getAddrInfoVec())
         {
             auto newSocket = std::make_unique<Socket>(addr_info_pair);
             bool exists = false;
@@ -61,16 +62,16 @@ Server::Server(const GlobalConfig& global_config)
 
 // * Getter not needed
 // * Inefficient: making a copy of vector on every return (use const std::vector<>&)
-std::vector<ServerConfig> Server::get_configs() const
-{
-    return _configs;
-}
+// std::vector<ServerConfig> Server::get_configs() const
+// {
+//     return _configs;
+// }
 
 // * Setter not needed
-void Server::set_configs(const std::vector<ServerConfig> &configs)
-{
-    _configs = configs;
-}
+// void Server::set_configs(const std::vector<ServerConfig> &configs)
+// {
+//     _configs = configs;
+// }
 
 void Server::fillActiveSockets()
 {
@@ -83,7 +84,11 @@ void Server::fillActiveSockets()
 
 void Server::run()
 {
-    std::cout << "Server is running..." << '\n';
+    std::cout << "Server is started successfully. Listening on " << _activeSockets.size() << " addresses..." << '\n';
+    // TODO: Add printing of host:port of sockets currently being listened to
+
+    // * check if server starts with listening to 0 connections
+
     while (g_shutdownServer == 0)
     {
         /*

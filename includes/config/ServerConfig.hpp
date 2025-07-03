@@ -5,6 +5,7 @@
 #include "utils.hpp"
 #include <cstring> /* std::memset() */
 #include <map>
+#include <memory>  /* std::unique_ptr */
 #include <netdb.h> /* getaddrinfo(), freeaddrinfo() */
 #include <stdexcept>
 #include <string>
@@ -27,30 +28,31 @@ public:
     ServerConfig(const std::string &server_block_str, const GlobalConfig &global_config);
 
     // OCF
-    ServerConfig(); // ! Just for testing; should mark as `=delete` later
-    ServerConfig(const ServerConfig &other) = default;
-    ServerConfig &operator=(const ServerConfig &other) = default;
+    ServerConfig() = delete; // ! Just for testing; should mark as `=delete` later
+    ServerConfig(const ServerConfig &other) = delete;
+    ServerConfig(ServerConfig &&other) = default;
+    ServerConfig &operator=(const ServerConfig &other) = delete;
     ServerConfig &operator=(ServerConfig &&other) = default;
     ~ServerConfig();
 
 public:
-    [[nodiscard]] const std::vector<StringPair>               &getHostPortPairs() const;
-    [[nodiscard]] const std::vector<AddrInfoPair>             &getAddrInfoVec() const;
-    [[nodiscard]] const std::string                           &getRoot() const;
-    [[nodiscard]] const std::vector<std::string>              &getServerNames() const;
-    [[nodiscard]] const std::vector<std::string>              &getIndexFilesVec() const;
-    [[nodiscard]] std::size_t                                  getClientMaxBodySize() const;
-    [[nodiscard]] bool                                         getAutoIndex() const;
-    [[nodiscard]] const std::map<int, std::string>            &getErrorPagesMap() const;
-    [[nodiscard]] const std::map<std::string, LocationConfig> &getLocationsMap() const;
+    [[nodiscard]] const std::vector<StringPair>                                &getHostPortPairs() const;
+    [[nodiscard]] const std::vector<AddrInfoPair>                              &getAddrInfoVec() const;
+    [[nodiscard]] const std::string                                            &getRoot() const;
+    [[nodiscard]] const std::vector<std::string>                               &getServerNames() const;
+    [[nodiscard]] const std::vector<std::string>                               &getIndexFilesVec() const;
+    [[nodiscard]] std::size_t                                                   getClientMaxBodySize() const;
+    [[nodiscard]] bool                                                          getAutoIndex() const;
+    [[nodiscard]] const std::map<int, std::string>                             &getErrorPagesMap() const;
+    [[nodiscard]] const std::map<std::string, std::unique_ptr<LocationConfig>> &getLocationsMap() const;
     // TODO cgi getter
 
-    // ! remove the below getters
-    [[nodiscard]] std::string getHost() const; // !
-    [[nodiscard]] int         getPort() const; // !
+    // // ! remove the below getters
+    // [[nodiscard]] std::string getHost() const; // !
+    // [[nodiscard]] int         getPort() const; // !
 
-    // ! remove
-    void setPort(int newPort); // !
+    // // ! remove
+    // void setPort(int newPort); // !
 
 private:
     // All `host:port` combinations this server listens to // * Better convert to unordered_set or unordered_map
@@ -77,14 +79,14 @@ private:
     // URI that will be shown for the specified error codes (must be between 300 and 599)
     std::map<int, std::string> _error_pages_map{};
 
-    // ! Should remove because server can listen to multiple host:port combinations
-    std::string _host;
+    // // ! Should remove because server can listen to multiple host:port combinations
+    // std::string _host;
 
-    // ! Should remove because server can listen to multiple host:port combinations
-    int _port;
+    // // ! Should remove because server can listen to multiple host:port combinations
+    // int _port;
 
     // Sets configuration depending on a request URI
-    std::map<std::string, LocationConfig> _locations_map;
+    std::map<std::string, std::unique_ptr<LocationConfig>> _locations_map;
 
     // TODO: CGI handler, maps extensions (e.g., `.py` or `.php`) to their interpreters
     // (`/usr/bin/python3`) std::map<std::string, std::string> _cgi_handler;

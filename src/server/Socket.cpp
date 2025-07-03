@@ -81,7 +81,7 @@ void Socket::createSocket()
     _fd = socket(_addr_info_struct.ai_family, _addr_info_struct.ai_socktype, _addr_info_struct.ai_protocol);
     if (_fd < 0)
     {
-        throw std::runtime_error("Failed to create socket");
+        throw std::runtime_error("Failed to create socket: " + std::string{strerror(errno)});
     }
 
     // Set socket option to reuse address
@@ -89,23 +89,23 @@ void Socket::createSocket()
     if (setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
         close(_fd);
-        throw std::runtime_error("Failed to set socket options");
+        throw std::runtime_error("Failed to set socket options: " + std::string{strerror(errno)});
     }
 }
 
 void Socket::setNonBlocking()
 {
-    int flags = fcntl(_fd, F_GETFL, 0);
+    int flags = fcntl(_fd, F_GETFL, 0); // ? is this flag allowed
     if (flags == -1)
     {
         close(_fd);
-        throw std::runtime_error("Failed to get socket flags");
+        throw std::runtime_error("Failed to get socket flags: " + std::string{strerror(errno)});
     }
 
     if (fcntl(_fd, F_SETFL, flags | O_NONBLOCK) == -1)
     {
         close(_fd);
-        throw std::runtime_error("Failed to set socket to non-blocking mode");
+        throw std::runtime_error("Failed to set socket to non-blocking mode: " + std::string{strerror(errno)});
     }
 }
 
@@ -138,7 +138,7 @@ void Socket::bindSocket()
     if (bind(_fd, _addr_info_struct.ai_addr, _addr_info_struct.ai_addrlen) < 0)
     {
         close(_fd);
-        throw std::runtime_error("Failed to bind socket to " + _host + ":" + _port);
+        throw std::runtime_error("Failed to bind socket to " + _host + ":" + _port + " : " + strerror(errno));
     }
 }
 
@@ -147,7 +147,7 @@ void Socket::listenSocket(int backlog)
     if (listen(_fd, backlog) < 0)
     {
         close(_fd);
-        throw std::runtime_error("Failed to listen on socket");
+        throw std::runtime_error("Failed to listen on socket: " + std::string{strerror(errno)});
     }
 }
 
@@ -163,13 +163,13 @@ void Socket::initSocket()
     }
     catch (const std::exception &e)
     {
-        std::cerr << "Socket initialization error: " << e.what() << '\n';
+        // std::cerr << "Socket initialization error: " << e.what() << '\n';
         if (_fd != -1)
         {
             close(_fd);
             _fd = -1;
         }
-        throw;
+        throw std::runtime_error(std::string{e.what()});
     }
 }
 

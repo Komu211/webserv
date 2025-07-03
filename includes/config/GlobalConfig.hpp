@@ -1,16 +1,17 @@
 #pragma once
 
 #include "ServerConfig.hpp"
+#include "utils.hpp"
 #include <algorithm> /* std::transform() */
 #include <cstring>   /* strerror() */
 #include <fstream>   /* std::ifstream */
 #include <iostream>
 #include <limits>
 #include <map>
+#include <memory>    /* std::unique_ptr */
 #include <stdexcept> /* std::runtime_error */
 #include <string>
 #include <vector>
-#include "utils.hpp"
 
 class ServerConfig;
 
@@ -22,18 +23,19 @@ public:
 
     // OCF
     GlobalConfig() = delete;
-    GlobalConfig(const GlobalConfig &other) = default;
-    GlobalConfig &operator=(const GlobalConfig &other) = default;
+    GlobalConfig(const GlobalConfig &other) = delete;
+    GlobalConfig(GlobalConfig &&other) = default;
+    GlobalConfig &operator=(const GlobalConfig &other) = delete;
     GlobalConfig &operator=(GlobalConfig &&other) = default;
     ~GlobalConfig() = default;
 
     // Getters
-    const std::string                &getRoot() const;
-    const std::vector<std::string>   &getIndexFiles() const;
-    std::size_t                       getClientMaxBodySize() const;
-    bool                              getAutoIndex() const;
-    const std::map<int, std::string> &getErrorPagesMap() const;
-    const std::vector<ServerConfig>  &getServerConfigs() const;
+    const std::string                                &getRoot() const;
+    const std::vector<std::string>                   &getIndexFiles() const;
+    std::size_t                                       getClientMaxBodySize() const;
+    bool                                              getAutoIndex() const;
+    const std::map<int, std::string>                 &getErrorPagesMap() const;
+    const std::vector<std::unique_ptr<ServerConfig>> &getServerConfigs() const;
 
 private:
     // Root directory for requests
@@ -52,7 +54,7 @@ private:
     std::map<int, std::string> _error_pages_map{};
 
     // `ServerConfig`s
-    std::vector<ServerConfig> _serverConfigs{};
+    std::vector<std::unique_ptr<ServerConfig>> _serverConfigs{};
 
 private: // Data members for parser only
     // Represents whether a value has already been seen in the config file

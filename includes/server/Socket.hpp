@@ -2,7 +2,7 @@
 
 #include <arpa/inet.h>
 #include <cerrno>
-#include <cstring>
+#include <cstring> /* strerror() */
 #include <fcntl.h>
 #include <iostream>
 #include <memory>

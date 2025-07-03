@@ -1,12 +1,13 @@
 #include "ServerConfig.hpp"
 
-ServerConfig::ServerConfig()
-{
-    _host = "localhost";
-    _port = 8080;
-    _root = ".";
-    _serverNames = {"localhost"};
-}
+// ! To be deleted
+// ServerConfig::ServerConfig()
+// {
+//     _host = "localhost";
+//     _port = 8080;
+//     _root = ".";
+//     _serverNames = {"localhost"};
+// }
 
 // Main parameterized ctor (parses server_block_str, inherits the rest from global_config)
 ServerConfig::ServerConfig(const std::string &server_block_str, const GlobalConfig &global_config)
@@ -17,6 +18,8 @@ ServerConfig::ServerConfig(const std::string &server_block_str, const GlobalConf
     , _error_pages_map{global_config.getErrorPagesMap()}
 {
     parseServerConfig(server_block_str);
+
+    // TODO: Check that there are no duplicates in listening addresses (ignore)
 
     // Convert all provided `listen` host:port combinations to `struct addrinfo`; throw on error
     setAddrInfo();
@@ -73,28 +76,28 @@ const std::map<int, std::string> &ServerConfig::getErrorPagesMap() const
     return _error_pages_map;
 }
 
-const std::map<std::string, LocationConfig> &ServerConfig::getLocationsMap() const
+const std::map<std::string, std::unique_ptr<LocationConfig>> &ServerConfig::getLocationsMap() const
 {
     return _locations_map;
 }
 
-// ! Need to update because server can listen to multiple host:ports combinations
-int ServerConfig::getPort() const
-{
-    return _port;
-}
+// // ! Need to update because server can listen to multiple host:ports combinations
+// int ServerConfig::getPort() const
+// {
+//     return _port;
+// }
 
-// ! remove (not needed)
-void ServerConfig::setPort(int newPort)
-{
-    _port = newPort;
-}
+// // ! remove (not needed)
+// void ServerConfig::setPort(int newPort)
+// {
+//     _port = newPort;
+// }
 
-// ! Need to update because server can listen to multiple host:ports combinations
-std::string ServerConfig::getHost() const
-{
-    return _host;
-}
+// // ! Need to update because server can listen to multiple host:ports combinations
+// std::string ServerConfig::getHost() const
+// {
+//     return _host;
+// }
 
 /* Parsing logic */
 
@@ -251,7 +254,7 @@ void ServerConfig::initLocationConfig()
             throw std::runtime_error("Config file syntax error: duplicate location: " + locName);
 
         // _locations_map[locName] = LocationConfig(elem.substr(openingBracePos), *this);
-        _locations_map.emplace(locName, LocationConfig(elem.substr(openingBracePos), *this));
+        _locations_map.emplace(locName, std::make_unique<LocationConfig>(elem.substr(openingBracePos), *this));
     }
 }
 

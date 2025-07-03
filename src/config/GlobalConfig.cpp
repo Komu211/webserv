@@ -41,7 +41,7 @@ const std::map<int, std::string> &GlobalConfig::getErrorPagesMap() const
     return _error_pages_map;
 }
 
-const std::vector<ServerConfig> &GlobalConfig::getServerConfigs() const
+const std::vector<std::unique_ptr<ServerConfig>> &GlobalConfig::getServerConfigs() const
 {
     return _serverConfigs;
 }
@@ -98,7 +98,7 @@ void GlobalConfig::parseConfFile(std::ifstream &file_stream)
 
     // Set ServerConfigs using the strings saved earlier
     for (auto &elem : _serverConfigsStr)
-        _serverConfigs.emplace_back(ServerConfig(elem, *this));
+        _serverConfigs.emplace_back(std::make_unique<ServerConfig>(elem, *this));
 
     // * Maybe warn if any host:port - server_name pairs are duplicate
 }

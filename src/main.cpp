@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 
     try
     {
-        GlobalConfig globalConfig{GlobalConfig(argv[1])};
+        // GlobalConfig globalConfig{GlobalConfig(argv[1])}; // ! remove
         std::cout << "Hello from the wondrous webserv!" << '\n';
         // ServerConfig config1; // ! remove
         // ServerConfig config2; // ! remove
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
         // config2.setPort(8081); // ! remove
         // config3.setPort(8082); // ! remove
 
-        Server server{globalConfig};
+        Server server{argv[1]};
         server.fillActiveSockets();
         server.run();
     }
