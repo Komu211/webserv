@@ -4,8 +4,6 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
-#include <iomanip> /* std::quoted */
-#include <sstream>
 #include <set>
 
 /* Trim the start and end of a string using a given charset (default whitespaces) */

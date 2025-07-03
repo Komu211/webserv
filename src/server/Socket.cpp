@@ -1,7 +1,9 @@
 #include "Socket.hpp"
 
 Socket::Socket(std::string host, int port)
-    : _host(std::move(host)), _port(port), _fd(-1)
+    : _host(std::move(host))
+    , _port(port)
+    , _fd(-1)
 {
 }
 
@@ -105,7 +107,7 @@ void Socket::bindSocket()
     }
     else
     {
-        if (inet_pton(AF_INET, _host.c_str(), &address.sin_addr) <= 0)
+        if (inet_pton(AF_INET, _host.c_str(), &address.sin_addr) <= 0) // ! forbidden function
         {
             close(_fd);
             throw std::runtime_error("Invalid address: " + _host);
@@ -152,7 +154,6 @@ void Socket::initSocket()
 
 std::ostream &operator<<(std::ostream &os, const Socket &socket)
 {
-    os << "Socket(host: " << socket.get_host() << ", port: " << socket.get_port()
-       << ", fd: " << socket.get_fd() << ")";
+    os << "Socket(host: " << socket.get_host() << ", port: " << socket.get_port() << ", fd: " << socket.get_fd() << ")";
     return os;
 }

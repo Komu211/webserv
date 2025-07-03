@@ -1,8 +1,8 @@
+#include "GlobalConfig.hpp"
 #include "Server.hpp"
 #include <csignal> /* signal() */
 #include <iostream>
 #include <string>
-#include "GlobalConfig.hpp"
 
 // Global volatile flag to signal shutdown
 volatile sig_atomic_t g_shutdownServer = 0;
@@ -17,7 +17,7 @@ void signal_handler(int signum)
     }
 }
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     // Register signal handler for graceful shutdown
     if (signal(SIGINT, signal_handler) == SIG_ERR)
@@ -31,10 +31,10 @@ int main(int argc, char** argv)
         std::cout << "Usage: ./webserv <configuration file>" << '\n';
         return 1;
     }
-    
+
     try
     {
-        GlobalConfig globalConfig {GlobalConfig(argv[1])};
+        GlobalConfig globalConfig{GlobalConfig(argv[1])};
         return 0; // ! for testing
         std::cout << "Hello from the wondrous webserv!" << std::endl;
         ServerConfig config1; // ! remove
@@ -48,7 +48,7 @@ int main(int argc, char** argv)
         server.fillActiveSockets();
         server.run();
     }
-    catch(const std::exception& e)
+    catch (const std::exception &e)
     {
         std::cerr << "Error: " << e.what() << '\n';
         return 1;

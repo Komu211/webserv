@@ -1,6 +1,7 @@
 #include "Server.hpp"
 
-Server::Server(std::vector<ServerConfig> configs) : _configs(std::move(configs))
+Server::Server(std::vector<ServerConfig> configs)
+    : _configs(std::move(configs))
 {
     for (const auto &config : _configs)
     {
@@ -26,11 +27,14 @@ Server::Server(std::vector<ServerConfig> configs) : _configs(std::move(configs))
     }
 }
 
-// ! Inefficient: making a copy of vector on every return (use const std::vector<>&)
+// * Getter not needed
+// * Inefficient: making a copy of vector on every return (use const std::vector<>&)
 std::vector<ServerConfig> Server::get_configs() const
 {
     return _configs;
 }
+
+// * Setter not needed
 void Server::set_configs(const std::vector<ServerConfig> &configs)
 {
     _configs = configs;

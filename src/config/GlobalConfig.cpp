@@ -162,11 +162,13 @@ void GlobalConfig::setClientMaxBodySize(std::string directive)
         throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive is duplicate: " + directive);
 
     trim(directive, ";");
-    
+
     std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
     if (args.size() != 1)
-        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of arguments: " + directive);
+        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of "
+                                 "arguments: " +
+                                 directive);
 
     directive = args[0];
 

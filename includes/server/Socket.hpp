@@ -25,7 +25,7 @@ private:
     void listenSocket(int backlog = 10);
 
 public:
-    Socket(std::string host, int port);
+    Socket(std::string host, int port); // ! use `struct addrinfo` constructor instead
     Socket(const Socket &src) = default;
     Socket &operator=(const Socket &src) = default;
     ~Socket();

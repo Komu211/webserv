@@ -18,7 +18,8 @@ ServerConfig::ServerConfig(const std::string &server_block_str, const GlobalConf
 {
     parseServerConfig(server_block_str);
 
-    // ! getaddrinfo
+    // Convert all provided `listen` host:port combinations to `struct addrinfo`; throw on error
+    setAddrInfo();
 
     // Set locationConfigs using the strings saved earlier
     initLocationConfig();
@@ -26,7 +27,8 @@ ServerConfig::ServerConfig(const std::string &server_block_str, const GlobalConf
 
 ServerConfig::~ServerConfig()
 {
-    // ! freeaddrinfo
+    for (auto &elem : _addrinfo_lists_vec)
+        freeaddrinfo(elem);
 }
 
 /* Getters */
@@ -36,9 +38,9 @@ const std::vector<std::pair<std::string, std::string>> &ServerConfig::getHostPor
     return _listen_host_port;
 }
 
-const std::vector<struct addrinfo *> &ServerConfig::getAddrInfoVec() const
+const std::vector<struct addrinfo> &ServerConfig::getAddrInfoVec() const
 {
-    return _addrinfo_lists_vec;
+    return _addrinfo_vec;
 }
 
 const std::string &ServerConfig::getRoot() const
@@ -196,6 +198,35 @@ void ServerConfig::setConfigurationValue(std::string directive)
         throw std::runtime_error("Config file syntax error: Disallowed directive in server context: " + directive);
 }
 
+void ServerConfig::setAddrInfo()
+{
+    if (_listen_host_port.empty()) // This should be impossible but still adding a check in case something goes wrong
+        throw std::runtime_error("Fatal: No listening `host:port` available for a server");
+
+    for (const auto &hostPort : _listen_host_port)
+    {
+        struct addrinfo *res;
+        struct addrinfo  hints;
+
+        std::memset(&hints, 0, sizeof(hints));
+        hints.ai_flags = AI_PASSIVE;     // Fill in `sockaddr` suitable for bind()
+        hints.ai_family = AF_UNSPEC;     // IPv4 or IPv6
+        hints.ai_socktype = SOCK_STREAM; // TCP
+
+        // Pass everything to getaddrinfo so it can fill `res` with the corresponding `sockaddr`
+        int getAddrReturn{getaddrinfo(hostPort.first.c_str(), hostPort.second.c_str(), &hints, &res)};
+        if (getAddrReturn != 0) // getaddrinfo return non-zero means invalid host:port
+            throw std::runtime_error("Could not validate `" + hostPort.first + ":" + hostPort.second + "`: " + gai_strerror(getAddrReturn));
+
+        // Save returned list so it can be freed by the destructor
+        _addrinfo_lists_vec.push_back(res);
+
+        // Save each `struct addrinfo` to be used with socket(), bind(), listen(), etc. later
+        for (auto cur{res}; cur != NULL; cur = cur->ai_next)
+            _addrinfo_vec.push_back(*cur);
+    }
+}
+
 void ServerConfig::initLocationConfig()
 {
     for (auto &elem : _locationConfigsStr)
@@ -234,7 +265,7 @@ void ServerConfig::setListen(std::string directive)
 
     if (args.size() != 1)
         throw std::runtime_error("Config file syntax error: 'listen' directive invalid number of arguments: " + directive);
-    
+
     directive = args[0];
 
     // Remove default listen ("0.0.0.0": "80")
@@ -372,11 +403,13 @@ void ServerConfig::setClientMaxBodySize(std::string directive)
         throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive is duplicate: " + directive);
 
     trim(directive, ";");
-    
+
     std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
     if (args.size() != 1)
-        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of arguments: " + directive);
+        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of "
+                                 "arguments: " +
+                                 directive);
 
     directive = args[0];
 

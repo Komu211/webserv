@@ -3,7 +3,9 @@
 #include "GlobalConfig.hpp"
 #include "LocationConfig.hpp"
 #include "utils.hpp"
+#include <cstring> /* std::memset() */
 #include <map>
+#include <netdb.h> /* getaddrinfo(), freeaddrinfo() */
 #include <stdexcept>
 #include <string>
 #include <utility> /* std::pair */
@@ -28,7 +30,7 @@ public:
 
 public:
     [[nodiscard]] const std::vector<std::pair<std::string, std::string>> &getHostPortPairs() const;
-    [[nodiscard]] const std::vector<struct addrinfo *>                   &getAddrInfoVec() const;
+    [[nodiscard]] const std::vector<struct addrinfo>                     &getAddrInfoVec() const;
     [[nodiscard]] const std::string                                      &getRoot() const;
     [[nodiscard]] const std::vector<std::string>                         &getServerNames() const;
     [[nodiscard]] const std::vector<std::string>                         &getIndexFilesVec() const;
@@ -50,7 +52,7 @@ private:
     std::vector<std::pair<std::string, std::string>> _listen_host_port{{"0.0.0.0", "80"}};
 
     // All `host:port` combinations this server listens to (in their addrinfo form)
-    std::vector<struct addrinfo *> _addrinfo_lists_vec{};
+    std::vector<struct addrinfo> _addrinfo_vec{};
 
     // All `server_name`s (Host header) this server responds to // * Better convert to unordered_set
     std::vector<std::string> _serverNames{};
@@ -94,11 +96,15 @@ private: // Data members for parser only
     // `LocationConfig`s in string form only for use in parser
     std::vector<std::string> _locationConfigsStr{};
 
+    // To be freed at destruction
+    std::vector<struct addrinfo *> _addrinfo_lists_vec{};
+
 private: // Member functions for parser only
     // Main parser
     void parseServerConfig(std::string server_block_str);
     // Helpers used by parser
     void setConfigurationValue(std::string directive);
+    void setAddrInfo();
     void initLocationConfig();
 
     // Setters don't need to be public

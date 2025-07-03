@@ -184,11 +184,13 @@ void LocationConfig::setClientMaxBodySize(std::string directive)
         throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive is duplicate: " + directive);
 
     trim(directive, ";");
-    
+
     std::vector<std::string> args{splitStrExceptQuotes(directive)};
 
     if (args.size() != 1)
-        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of arguments: " + directive);
+        throw std::runtime_error("Config file syntax error: 'client_max_body_size' directive invalid number of "
+                                 "arguments: " +
+                                 directive);
 
     directive = args[0];
 
@@ -235,7 +237,8 @@ void LocationConfig::setAutoIndex(std::string directive)
         throw std::runtime_error("Config file syntax error: 'autoindex' directive is duplicate: " + directive);
 
     trim(directive, ";");
-    trimOuterSpacesAndQuotes(directive);;
+    trimOuterSpacesAndQuotes(directive);
+    ;
 
     // Convert string to lowercase
     std::transform(directive.begin(), directive.end(), directive.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -324,7 +327,7 @@ void LocationConfig::setLimitExcept(std::string directive)
         std::transform(elem.begin(), elem.end(), elem.begin(), [](unsigned char c) { return std::tolower(c); });
 
         // check if HTTP method is valid
-        if (!isHttpMethod(elem)) // ! Possible to allow methods other than GET, POST, and DELETE
+        if (!isHttpMethod(elem)) // * Currently possible to allow methods other than GET, POST, and DELETE
             throw std::runtime_error("Config file syntax error: 'limit_except' directive invalid method: " + elem);
 
         _limit_except.insert(elem);
