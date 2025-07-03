@@ -12,6 +12,8 @@ GlobalConfig::GlobalConfig(std::string file_name)
 
     // Parse file, set Global Config, create ServerConfig objects, which in Turn create LocationConfig objects
     parseConfFile(file_stream);
+
+    // TODO: Create a server_name to ServerConfig mapping (either here or in Server class)
 }
 
 /* Getters */

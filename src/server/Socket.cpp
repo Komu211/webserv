@@ -25,15 +25,7 @@ Socket::~Socket()
 
 bool Socket::operator==(const Socket &other) const
 {
-    // return _host == other._host && _port == other._port;
-    return _addr_info_struct.ai_addr == other._addr_info_struct.ai_addr &&
-           _addr_info_struct.ai_addrlen == other._addr_info_struct.ai_addrlen &&
-           _addr_info_struct.ai_canonname == other._addr_info_struct.ai_canonname &&
-           _addr_info_struct.ai_family == other._addr_info_struct.ai_family &&
-           _addr_info_struct.ai_flags == other._addr_info_struct.ai_flags &&
-           _addr_info_struct.ai_next == other._addr_info_struct.ai_next &&
-           _addr_info_struct.ai_protocol == other._addr_info_struct.ai_protocol &&
-           _addr_info_struct.ai_socktype == other._addr_info_struct.ai_socktype;
+    return _host == other._host && _port == other._port;
 }
 
 bool Socket::operator!=(const Socket &other) const
@@ -61,20 +53,20 @@ int Socket::get_fd() const
     return _fd;
 }
 
-void Socket::set_host(const std::string &host)
-{
-    _host = host;
-}
+// void Socket::set_host(const std::string &host)
+// {
+//     _host = host;
+// }
 
-void Socket::set_port(int port)
-{
-    _port = port;
-}
+// void Socket::set_port(int port)
+// {
+//     _port = port;
+// }
 
-void Socket::set_fd(int fd)
-{
-    _fd = fd;
-}
+// void Socket::set_fd(int fd)
+// {
+//     _fd = fd;
+// }
 
 void Socket::createSocket()
 {

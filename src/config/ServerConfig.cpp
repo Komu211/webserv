@@ -214,6 +214,10 @@ void ServerConfig::setAddrInfo()
         hints.ai_family = AF_UNSPEC;     // IPv4 or IPv6
         hints.ai_socktype = SOCK_STREAM; // TCP
 
+        // The below check can take a while for non-standard addresses, so notify the user
+        if (!isStandardAddress(hostPort.first))
+            std::cout << "Checking validity of " << hostPort.first << ':' << hostPort.second << "...\n";
+
         // Pass everything to getaddrinfo so it can fill `res` with the corresponding `sockaddr`
         int getAddrReturn{getaddrinfo(hostPort.first.c_str(), hostPort.second.c_str(), &hints, &res)};
         if (getAddrReturn != 0) // getaddrinfo return non-zero means invalid host:port

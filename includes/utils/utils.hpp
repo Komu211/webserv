@@ -29,3 +29,6 @@ Assumes the input string is already in lowercase for case-insensitive comparison
 @param str The string to check.
 @return true if the string is a valid HTTP method, false otherwise.*/
 bool isHttpMethod(const std::string& str);
+
+// Check if an IP address is localhost, 0.0.0.0, or loopback
+bool isStandardAddress(const std::string& address);

@@ -9,12 +9,14 @@ Server::Server(std::string configFileName)
         // Each server_config can be listening on multiple host_port combinations
         for (const auto &addr_info_pair : server_config->getAddrInfoVec())
         {
-            auto newSocket = std::make_unique<Socket>(addr_info_pair);
+            // TODO: Add fd to server_name mapping because both host:port (i.e., fd) and server_name must match for request routing
+            auto newSocket{std::make_unique<Socket>(addr_info_pair)};
             bool exists = false;
             for (const auto &[_, existingSocket] : _sockets)
             {
                 if (*existingSocket == *newSocket)
                     exists = true;
+                std::cout << "[warn] conflicting listen on " << existingSocket->get_host() << ':' << existingSocket->get_port() << ", ignored" << '\n';
             }
             if (exists)
                 continue;
@@ -30,6 +32,8 @@ Server::Server(std::string configFileName)
             _sockets[newSocket->get_fd()] = std::move(newSocket);
         }
     }
+    if (_sockets.empty())
+        throw std::runtime_error("No valid listen addresses available. Cannot start server.");
 }
 
 // // Not needed + Inefficient: making a copy of vector on every return
@@ -54,8 +58,6 @@ void Server::run()
     {
         std::cout << " - " << *sockPtr << '\n';
     }
-
-    // ! Make sure that server cannot start with listening to 0 connections
 
     std::unordered_map<int, std::string> clientRequests;
 

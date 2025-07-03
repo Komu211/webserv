@@ -178,3 +178,14 @@ bool isHttpMethod(const std::string &str)
                                                        "options", "patch", "trace",  "connect"};
     return http_methods.count(str) > 0;
 }
+
+bool isStandardAddress(const std::string& address)
+{
+    if (address == "localhost" || address == "0.0.0.0" || address == "::")
+        return true;
+
+    if (address.length() == 9 && address.compare(0, 4, "127.") == 0)
+        return true;
+
+    return false;
+}
