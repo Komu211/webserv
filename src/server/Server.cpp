@@ -110,6 +110,7 @@ void Server::run()
             try
             {
                 readFromClient(clientFd, clientRequests, clientsToRemove);
+                // TODO: Add check here (or somewhere) for response is ready to be sent back
             }
             catch (const std::runtime_error &e)
             {
@@ -124,7 +125,9 @@ void Server::run()
             try
             {
                 writeResponseToClient(clientFd, clientRequests);
-                clientsToRemove.push_back(clientFd); // ? Are we supposed to close connection after sending each response to client?
+                // No need to close the connection unless request has `Connection: close` header (HTTP/1.1)
+                // TODO: add check for `Connection: close` header then conditionally add to clientsToRemove
+                // clientsToRemove.push_back(clientFd);
             }
             catch (const std::runtime_error &e)
             {
@@ -149,19 +152,26 @@ void Server::acceptNewConnections(int serverFd, std::unordered_map<int, std::str
     const int clientFd = accept(serverFd, nullptr, nullptr);
     if (clientFd >= 0)
     {
-        std::cout << "Accepted new connection via port: \n" << *(_sockets[serverFd]) << '\n';
-        _pollManager.addClientSocket(clientFd);
+        std::cout << "Accepted new connection via: \n" << *(_sockets[serverFd]) << '\n';
+        _pollManager.addClientSocket(clientFd); // POLLOUT should only be registered after a client sends a request and a response is ready to be sent back
         clientRequests[clientFd] = "";
     }
     else
     {
+        // accept returns -1 if there are no more connections to accept; that's not necessarily an error if (errno == EAGAIN or EWOULDBLOCK)
+        if (errno == EWOULDBLOCK || errno == EAGAIN)
+        {
+            std::cout << "No more connections to accept via: \n" << *(_sockets[serverFd]) << '\n';
+            return;
+        }
+        // Throw only if (errno != EAGAIN or EWOULDBLOCK)
         throw std::runtime_error("Error accepting new connection: " + std::string(strerror(errno)));
     }
 }
 
 void Server::readFromClient(int clientFd, std::unordered_map<int, std::string> &clientRequests, std::vector<int> &clientsToRemove)
 {
-    char    buffer[1024];
+    char    buffer[1024]; // ! Requests can be larger than 1024 bytes; read in a loop
     ssize_t bytesRead = read(clientFd, buffer, sizeof(buffer) - 1);
 
     if (bytesRead > 0)
@@ -169,7 +179,7 @@ void Server::readFromClient(int clientFd, std::unordered_map<int, std::string> &
         buffer[bytesRead] = '\0';
         clientRequests[clientFd] += buffer;
 
-        // Put the recieved request into a file - TODO: replace with a proper request parser
+        // Put the received request into a file - TODO: replace with a proper request parser
         if (std::ofstream requestFile("request_" + std::to_string(clientFd) + ".txt"); requestFile.is_open())
         {
             requestFile << clientRequests[clientFd];
@@ -179,6 +189,8 @@ void Server::readFromClient(int clientFd, std::unordered_map<int, std::string> &
         {
             throw std::runtime_error("Error opening file to write request: " + std::string(strerror(errno)));
         }
+        // TODO: Add check here (or somewhere) for response is ready to be sent
+        _pollManager.updateEvents(clientFd, POLLOUT); // Register interest in writing back to client assuming that response is ready
     }
     else if (bytesRead == 0)
     {
@@ -211,4 +223,5 @@ void Server::writeResponseToClient(int clientFd, std::unordered_map<int, std::st
             throw std::runtime_error("Error sending response to client " + std::to_string(clientFd) + ": " + strerror(errno));
         }
     }
+    _pollManager.removeEvents(clientFd, POLLOUT); // Stop monitoring for writing until new request arrives / new response is ready
 }

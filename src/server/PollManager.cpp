@@ -30,7 +30,8 @@ void PollManager::addServerSocket(int fd)
 
 void PollManager::addClientSocket(int fd)
 {
-    addSocket(fd, POLLIN | POLLOUT);
+    // POLLOUT should only be registered after a client sends a request and a response is ready to be sent back
+    addSocket(fd, POLLIN /*| POLLOUT*/); 
     _isServerSocket[fd] = false;
 }
 
@@ -66,6 +67,18 @@ void PollManager::updateEvents(int fd, short events)
         if (pfd.fd == fd)
         {
             pfd.events |= events;
+            break;
+        }
+    }
+}
+
+void PollManager::removeEvents(int fd, short events)
+{
+    for (auto &pfd : _pollfds)
+    {
+        if (pfd.fd == fd)
+        {
+            pfd.events &= ~events;
             break;
         }
     }

@@ -20,6 +20,7 @@ public:
     void                 removeSocket(int fd);
     void                 setEvents(int fd, short events);
     void                 updateEvents(int fd, short events);
+    void                 removeEvents(int fd, short events);
 
     [[nodiscard]] bool isReadable(int fd) const;
     [[nodiscard]] bool isWritable(int fd) const;
