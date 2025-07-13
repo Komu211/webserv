@@ -7,9 +7,9 @@ enum HTTPMethod { GET, POST, DELETE, NONE };
 
 struct HTTPRequestData
 {
-    HTTPMethod method;
-    std::string uri;
-    std::string version;
+    const HTTPMethod method;
+    const std::string uri;
+    const std::string version;
     std::unordered_map<std::string, std::string> headers;
-    std::string body;
+    const std::string body;
 };

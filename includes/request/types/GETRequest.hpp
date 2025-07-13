@@ -5,5 +5,13 @@
 class GETRequest final : public HTTPRequest
 {
 public:
+    GETRequest() = delete;
+    explicit GETRequest(HTTPRequestData data);
+    GETRequest(const GETRequest &) = default;
+    GETRequest(GETRequest &&) = default;
+    ~GETRequest() override = default;
+    GETRequest& operator=(const GETRequest &) = default;
+    GETRequest& operator=(GETRequest &&) = default;
+    
     void handle() override;
 };

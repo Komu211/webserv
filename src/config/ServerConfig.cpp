@@ -206,10 +206,9 @@ void ServerConfig::setAddrInfo()
 
     for (const auto &hostPort : _listen_host_port)
     {
-        struct addrinfo *res;
-        struct addrinfo  hints;
+        addrinfo *res;
+        addrinfo  hints = {};
 
-        std::memset(&hints, 0, sizeof(hints));
         hints.ai_flags = AI_PASSIVE;     // Fill in `sockaddr` suitable for bind()
         hints.ai_family = AF_UNSPEC;     // IPv4 or IPv6
         hints.ai_socktype = SOCK_STREAM; // TCP

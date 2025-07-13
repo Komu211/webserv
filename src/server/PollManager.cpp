@@ -13,9 +13,9 @@ std::size_t PollManager::size() const
     return _pollfds.size();
 }
 
-void PollManager::addSocket(int fd, short events)
+void PollManager::addSocket(const int fd, const short events)
 {
-    struct pollfd pfd;
+    pollfd pfd{};
     pfd.fd = fd;
     pfd.events = events;
     pfd.revents = 0;
@@ -143,7 +143,7 @@ std::vector<int> PollManager::getWritableClientSockets() const
     return writableSockets;
 }
 
-std::vector<struct pollfd> PollManager::getPollFDs()
+std::vector<pollfd> PollManager::getPollFDs()
 {
     return _pollfds;
 }

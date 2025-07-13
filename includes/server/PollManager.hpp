@@ -7,7 +7,7 @@
 class PollManager
 {
 private:
-    std::vector<struct pollfd>    _pollfds;
+    std::vector<pollfd>    _pollfds;
     std::unordered_map<int, bool> _isServerSocket;
 
 public:
@@ -30,5 +30,5 @@ public:
     [[nodiscard]] std::vector<int> getReadableClientSockets() const;
     [[nodiscard]] std::vector<int> getWritableClientSockets() const;
 
-    std::vector<struct pollfd> getPollFDs();
+    std::vector<pollfd> getPollFDs();
 };
