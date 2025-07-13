@@ -21,4 +21,4 @@ INCLUDES	=	-Iincludes \
 				-Iincludes/config \
 				-Iincludes/utils \
 				-Iincludes/request \
-				-Iincludes/request/type
+				-Iincludes/request/types

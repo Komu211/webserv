@@ -3,6 +3,7 @@
 #include "PollManager.hpp"
 #include "ServerConfig.hpp"
 #include "Socket.hpp"
+#include "HTTPRequestParser.hpp"
 #include <chrono>
 #include <csignal>
 #include <iostream>
@@ -13,6 +14,7 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+
 
 // Global volatile flag to signal shutdown
 extern volatile sig_atomic_t g_shutdownServer;

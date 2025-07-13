@@ -1,4 +1,4 @@
-#include "../../includes/request/HTTPRequestFactory.hpp"
+#include "HTTPRequestFactory.hpp"
 
 std::unique_ptr<HTTPRequest> HTTPRequestFactory::createRequest(const HTTPRequestData &data)
 {

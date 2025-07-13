@@ -1,4 +1,4 @@
-#include "../../includes/request/HTTPRequestParser.hpp"
+#include "HTTPRequestParser.hpp"
 
 bool HTTPRequestParser::is_valid_request(const std::string &request_str)
 {

@@ -1,4 +1,4 @@
-#include "../../includes/request/HTTPRequest.hpp"
+#include "HTTPRequest.hpp"
 
 HTTPRequest::HTTPRequest(HTTPRequestData data):
     _data(std::move(data))
