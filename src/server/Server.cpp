@@ -1,7 +1,9 @@
 #include "Server.hpp"
 
+#include <utility>
+
 Server::Server(std::string configFileName)
-    : _global_config{configFileName} // Initiate parsing of the config file
+    : _global_config{std::move(configFileName)} // Initiate parsing of the config file
 {
     // Create listening sockets
     for (const auto &server_config : _global_config.getServerConfigs())
