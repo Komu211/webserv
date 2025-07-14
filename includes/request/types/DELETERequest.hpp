@@ -10,8 +10,6 @@ public:
     DELETERequest(const DELETERequest &) = default;
     DELETERequest(DELETERequest &&) = default;
     ~DELETERequest() override = default;
-    DELETERequest& operator=(const DELETERequest &) = default;
-    DELETERequest& operator=(DELETERequest &&) = default;
 
     void handle() override;
 };

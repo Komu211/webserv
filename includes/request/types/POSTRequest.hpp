@@ -10,8 +10,6 @@ public:
     POSTRequest(const POSTRequest &) = default;
     POSTRequest(POSTRequest &&) = default;
     ~POSTRequest() override = default;
-    POSTRequest& operator=(const POSTRequest &) = default;
-    POSTRequest& operator=(POSTRequest &&) = default;
     
     void handle() override;
 };

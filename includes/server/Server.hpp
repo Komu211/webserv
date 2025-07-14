@@ -1,9 +1,10 @@
 #pragma once
 
+#include "HTTPRequest.hpp"
+#include "HTTPRequestParser.hpp"
 #include "PollManager.hpp"
 #include "ServerConfig.hpp"
 #include "Socket.hpp"
-#include "HTTPRequestParser.hpp"
 #include <chrono>
 #include <csignal>
 #include <iostream>
@@ -15,11 +16,18 @@
 #include <unordered_map>
 #include <vector>
 
+#define BUFFER_SIZE 1024
 
 // Global volatile flag to signal shutdown
 extern volatile sig_atomic_t g_shutdownServer;
 
 class GlobalConfig;
+
+struct PendingResponse
+{
+    std::string response;
+    size_t sent;
+};
 
 class Server
 {
@@ -29,8 +37,8 @@ private:
     PollManager                                      _pollManager;
 
     void acceptNewConnections(int serverFd, std::unordered_map<int, std::string> &clientRequests);
-    void readFromClient(int clientFd, std::unordered_map<int, std::string> &clientRequests, std::vector<int> &clientsToRemove);
-    void writeResponseToClient(int clientFd, std::unordered_map<int, std::string> &clientRequests);
+    std::string readFromClient(int clientFd, std::string partialRequest);
+    PendingResponse writeResponseToClient(int clientFd, std::unique_ptr<HTTPRequest> &clientRequest, PendingResponse &pendingResponse);
 
 public:
     explicit Server(std::string configFileName);

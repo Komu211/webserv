@@ -10,8 +10,6 @@ public:
     GETRequest(const GETRequest &) = default;
     GETRequest(GETRequest &&) = default;
     ~GETRequest() override = default;
-    GETRequest& operator=(const GETRequest &) = default;
-    GETRequest& operator=(GETRequest &&) = default;
     
     void handle() override;
 };

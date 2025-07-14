@@ -1,4 +1,4 @@
-VPATH		=	$(SRC_DIR):$(SRC_DIR)/server:$(SRC_DIR)/config:$(SRC_DIR)/utils:$(SRC_DIR)/request:$(SRC_DIR)/request/type
+VPATH		=	$(SRC_DIR):$(SRC_DIR)/server:$(SRC_DIR)/config:$(SRC_DIR)/utils:$(SRC_DIR)/request:$(SRC_DIR)/request/types
 
 SRCS		=	main.cpp \
 				Server.cpp \
