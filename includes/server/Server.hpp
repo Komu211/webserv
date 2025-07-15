@@ -14,6 +14,7 @@
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #define BUFFER_SIZE 1024
@@ -29,16 +30,31 @@ struct PendingResponse
     size_t sent;
 };
 
+struct ClientData
+{
+    std::string partialRequest;
+    std::unique_ptr<HTTPRequest> parsedRequest;
+    PendingResponse pendingResponse;
+};
+
 class Server
 {
 private:
     GlobalConfig                                     _global_config;
     std::unordered_map<int, std::unique_ptr<Socket>> _sockets;
     PollManager                                      _pollManager;
+    std::unordered_map<int, ClientData>              _clientData;
+    std::unordered_set<int> _clientsToRemove;
 
-    void acceptNewConnections(int serverFd, std::unordered_map<int, std::string> &clientRequests);
-    std::string readFromClient(int clientFd, std::string partialRequest);
-    PendingResponse writeResponseToClient(int clientFd, std::unique_ptr<HTTPRequest> &clientRequest, PendingResponse &pendingResponse);
+
+    void acceptNewConnections();
+    void acceptNewConnection(int serverFd);
+    void readFromClients();
+    std::string readFromClient(int clientFd);
+    void respondToClients();
+    void respondToClient(int clientFd);
+    void closeConnections();
+    PendingResponse writeResponseToClient(int clientFd);
 
 public:
     explicit Server(std::string configFileName);

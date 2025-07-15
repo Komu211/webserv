@@ -17,4 +17,6 @@ public:
 
     // Where the magic happens
     virtual void handle() = 0;
+
+    [[nodiscard]] bool isCloseConnection() const;
 };

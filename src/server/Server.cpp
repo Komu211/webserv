@@ -42,7 +42,7 @@ Server::Server(std::string configFileName)
 }
 
 // // Not needed + Inefficient: making a copy of vector on every return
-// std::vector<ServerConfig> Server::get_configs() const
+// std::vector<ServerConfig> Server::get_configs() const.0
 // {
 //     return _configs;
 // }
@@ -64,24 +64,9 @@ void Server::run()
         std::cout << " - " << *sockPtr << '\n';
     }
 
-    std::unordered_map<int, std::string> partialRequests;
-    std::unordered_map<int, std::unique_ptr<HTTPRequest>> parsedRequests;
-    std::unordered_map<int, PendingResponse> pendingResponses;
-
     while (g_shutdownServer == 0)
     {
-        /*
-         *TODO:
-         * 1. Poll for events on the watched FDs ✅
-         * 2. Accept new connections ✅
-         * 3. Read requests from clients ✅
-         * 4. Read available internal files
-         * 5. Send responses to clients ✅
-         * 6. Close finished and timeout connections ✅
-         */
-
-        const int        pollResult = poll(_pollManager.data(), _pollManager.size(), -1);
-        std::vector<int> clientsToRemove;
+        const int   pollResult = poll(_pollManager.data(), _pollManager.size(), -1);
 
         if (pollResult < 0)
         {
@@ -92,111 +77,44 @@ void Server::run()
             std::cerr << "Poll error: " << strerror(errno) << '\n';
             continue;
         }
-        if (pollResult == 0)
-        {
-            std::cout << "No events occurred within the timeout." << '\n';
-            continue;
-        }
-
-        // Stage 1: Handle new connections
-        for (const int serverFd : _pollManager.getReadableServerSockets())
-        {
-            try
-            {
-                acceptNewConnections(serverFd, partialRequests);
-            }
-            catch (const std::runtime_error &e)
-            {
-                std::cerr << e.what() << '\n';
-            }
-        }
+        // Stage 1: Accept new connections
+        acceptNewConnections();
 
         // Stage 2: Read from clients
-        for (int clientFd : _pollManager.getReadableClientSockets())
-        {
-            std::string currentRequest = partialRequests[clientFd];
-            try
-            {
-                currentRequest = readFromClient(clientFd, currentRequest);
-                std::cout << "Received request from client: " << clientFd << '\n';
-            }
-            catch (const std::runtime_error &e)
-            {
-                std::cerr << "Error reading from client " << clientFd << ": " << e.what() << '\n';
-                clientsToRemove.push_back(clientFd);
-                continue;
-            }
-            if (currentRequest.empty())
-                clientsToRemove.push_back(clientFd);
-            else if (HTTPRequestParser::isValidRequest(currentRequest))
-            {
-                try
-                {
-                    HTTPRequestData data = HTTPRequestParser::parse(currentRequest);
-                    parsedRequests[clientFd] = HTTPRequestFactory::createRequest(data);
-                    _pollManager.updateEvents(clientFd, POLLOUT);
-                }
-                catch (const std::runtime_error &e)
-                {
-                    std::cerr << "Error parsing request: " << e.what() << '\n';
-                    clientsToRemove.push_back(clientFd);
-                }
-            }
-            else
-                partialRequests[clientFd] = currentRequest;
-        }
+        readFromClients();
 
         // Stage 3: Write responses to clients
-        for (int clientFd : _pollManager.getWritableClientSockets())
-        {
-            if (parsedRequests.find(clientFd) != parsedRequests.end())
-            {
-                try
-                {
-                    std::cout << "Sending response to client: " << clientFd << '\n';
-                    PendingResponse pendingResponse = {"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello, World!", 0};
-                    if (pendingResponses.find(clientFd) != pendingResponses.end())
-                        pendingResponse = pendingResponses[clientFd];
-                    pendingResponse = writeResponseToClient(clientFd, parsedRequests[clientFd], pendingResponse);
-                    if (pendingResponse.response.size() == pendingResponse.sent)
-                    {
-                        std::cout << "All sent, switch back to listening" << std::endl;
-                        pendingResponses.erase(clientFd);
-                        _pollManager.updateEvents(clientFd, POLLIN); // Start monitoring for reading new requests
-                        _pollManager.removeEvents(clientFd, POLLOUT); // Stop monitoring for writing until new request arrives / new response is ready
-                    }
-                    else
-                        pendingResponses[clientFd] = pendingResponse;
-                    // TODO: add check for `Connection: close` header then conditionally add to clientsToRemove
-                }
-                catch (const std::runtime_error &e)
-                {
-                    std::cerr << "Error writing to client " << clientFd << ": " << e.what() << '\n';
-                    clientsToRemove.push_back(clientFd);
-                }
-            }
-        }
+        respondToClients();
 
         // Clean up closed connections
-        for (int fd : clientsToRemove)
-        {
-            _pollManager.removeSocket(fd);
-            partialRequests.erase(fd);
-            parsedRequests.erase(fd);
-            close(fd);
-        }
+        closeConnections();
     }
     std::cout << "Server successfully stopped. Goodbye!" << '\n';
 }
 
-void Server::acceptNewConnections(int serverFd, std::unordered_map<int, std::string> &partialRequests)
+void Server::acceptNewConnections()
+{
+    for (const int serverFd : _pollManager.getReadableServerSockets())
+    {
+        try
+        {
+            acceptNewConnection(serverFd);
+        }
+        catch (const std::runtime_error &e)
+        {
+            std::cerr << e.what() << '\n';
+        }
+    }
+}
+
+void Server::acceptNewConnection(int serverFd)
 {
     const int clientFd = accept(serverFd, nullptr, nullptr);
     if (clientFd >= 0)
     {
         std::cout << "Accepted new connection via: \n" << *(_sockets[serverFd]) << '\n';
         _pollManager.addClientSocket(clientFd);
-        partialRequests[clientFd] = "";
+        _clientData[clientFd] = {"", nullptr, {}};
     }
     else
     {
@@ -210,33 +128,107 @@ void Server::acceptNewConnections(int serverFd, std::unordered_map<int, std::str
         throw std::runtime_error("Error accepting new connection: " + std::string(strerror(errno)));
     }
 }
-
-std::string Server::readFromClient(int clientFd, std::string partial_request)
+void Server::readFromClients()
 {
-    char        buffer[BUFFER_SIZE];
-    ssize_t     bytesRead = read(clientFd, buffer, BUFFER_SIZE - 1);
+    for (int clientFd : _pollManager.getReadableClientSockets())
+    {
+        std::string currentRequest;
+        try
+        {
+            currentRequest = readFromClient(clientFd);
+            std::cout << "Received request from client: " << clientFd << '\n';
+        }
+        catch (const std::runtime_error &e)
+        {
+            std::cerr << "Error reading from client " << clientFd << ": " << e.what() << '\n';
+            _clientsToRemove.insert(clientFd);
+            continue;
+        }
+        if (currentRequest.empty())
+            _clientsToRemove.insert(clientFd);
+        else if (HTTPRequestParser::isValidRequest(currentRequest))
+        {
+            try
+            {
+                HTTPRequestData data = HTTPRequestParser::parse(currentRequest);
+                _clientData[clientFd].parsedRequest = HTTPRequestFactory::createRequest(data);
+                _pollManager.updateEvents(clientFd, POLLOUT);
+                _clientData[clientFd].partialRequest.clear();
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error parsing request: " << e.what() << '\n';
+                _clientsToRemove.insert(clientFd);
+            }
+        }
+        else
+            _clientData[clientFd].partialRequest = currentRequest;
+    }
+}
+
+std::string Server::readFromClient(int clientFd)
+{
+    char          buffer[BUFFER_SIZE];
+    const ssize_t bytesRead = read(clientFd, buffer, BUFFER_SIZE - 1);
+    std::string   partialRequest = _clientData[clientFd].partialRequest;
 
     if (bytesRead > 0)
     {
         buffer[bytesRead] = '\0';
-        partial_request += buffer;
-        return partial_request;
+        partialRequest += buffer;
+        return partialRequest;
     }
     else if (bytesRead == 0)
         return ""; // Client has closed connection
     else
-    {
-        // Error reading from client
         throw std::runtime_error("Error reading from client " + std::to_string(clientFd) + ": " + strerror(errno));
+}
+void Server::respondToClients()
+{
+    for (int clientFd : _pollManager.getWritableClientSockets())
+    {
+        if (_clientData[clientFd].parsedRequest != nullptr)
+        {
+            try
+            {
+                respondToClient(clientFd);
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error writing to client " << clientFd << ": " << e.what() << '\n';
+                _clientsToRemove.insert(clientFd);
+            }
+        }
     }
 }
-PendingResponse Server::writeResponseToClient(int clientFd, std::unique_ptr<HTTPRequest> &clientRequest, PendingResponse &pendingResponses)
-{
 
-    (void)clientRequest; // Avoid unused variable warning
+void Server::respondToClient(int clientFd)
+{
+    std::cout << "Sending response to client: " << clientFd << '\n';
     // HTTPResponse = clientRequest->handle();
     // TODO: Create a HTTPResponse class and implement handle() method
+    if (_clientData[clientFd].pendingResponse.response.empty())
+        _clientData[clientFd].pendingResponse = {
+        "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello, World!",
+        0};
+    auto pendingResponse = writeResponseToClient(clientFd);
+    if (pendingResponse.response.size() == pendingResponse.sent)
+    {
+        std::cout << "All sent, switch back to listening" << std::endl;
+        if (_clientData[clientFd].parsedRequest->isCloseConnection())
+            _clientsToRemove.insert(clientFd);
+        _clientData[clientFd].pendingResponse = {};
+        _clientData[clientFd].parsedRequest = nullptr;
+        _pollManager.updateEvents(clientFd, POLLIN); // Start monitoring for reading new requests
+        _pollManager.removeEvents(clientFd, POLLOUT); // Stop monitoring for writing until new request arrives / new response is ready
+    }
+    else
+        _clientData[clientFd].pendingResponse = pendingResponse;
+}
 
+PendingResponse Server::writeResponseToClient(int clientFd)
+{
+    auto pendingResponses = _clientData[clientFd].pendingResponse;
     auto responseRemainder = pendingResponses.response.c_str() + pendingResponses.sent;
     auto remainingToSend = pendingResponses.response.size() - pendingResponses.sent;
 
@@ -246,4 +238,16 @@ PendingResponse Server::writeResponseToClient(int clientFd, std::unique_ptr<HTTP
         throw std::runtime_error("Error writing to client " + std::to_string(clientFd) + ": " + strerror(errno));
     pendingResponses.sent += bytesWritten;
     return pendingResponses;
+}
+
+void Server::closeConnections()
+{
+    for (int fd : _clientsToRemove)
+    {
+        _pollManager.removeSocket(fd);
+        _clientData.erase(fd);
+        close(fd);
+
+    }
+    _clientsToRemove.clear();
 }
