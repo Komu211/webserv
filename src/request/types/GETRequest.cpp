@@ -4,7 +4,8 @@ GETRequest::GETRequest(HTTPRequestData data) :
     HTTPRequest(data)
 {}
 
-void GETRequest::handle()
+std::string GETRequest::handle()
 {
-    std::cout << "GET Request: " << _data.body << std::endl;
+    // Replace this with actual logic for handling GET requests
+    return "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\ncontent-length: 13\r\n\r\nHello, World!";
 }

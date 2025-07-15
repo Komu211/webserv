@@ -4,7 +4,8 @@ DELETERequest::DELETERequest(HTTPRequestData data) :
     HTTPRequest(data)
 {}
 
-void DELETERequest::handle()
+std::string DELETERequest::handle()
 {
-    std::cout << "DELETE Request: " << _data.body << std::endl;
+    // Replace this with actual logic for handling GET requests
+    return "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\ncontent-length: 13\r\n\r\nHello, World!";
 }

@@ -3,7 +3,7 @@
 #include <string>
 #include <unordered_map>
 
-enum HTTPMethod { GET, POST, DELETE, NONE, UNKNOWN };
+enum HTTPMethod { GET, POST, DELETE, NONE, UNKNOWN, BAD_REQUEST };
 
 struct HTTPRequestData
 {

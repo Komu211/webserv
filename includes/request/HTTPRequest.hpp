@@ -16,7 +16,7 @@ public:
     virtual ~HTTPRequest() = default;
 
     // Where the magic happens
-    virtual void handle() = 0;
+    virtual std::string handle() = 0;
 
     [[nodiscard]] bool isCloseConnection() const;
 };

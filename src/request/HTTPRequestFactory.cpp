@@ -10,7 +10,9 @@ std::unique_ptr<HTTPRequest> HTTPRequestFactory::createRequest(const HTTPRequest
         return std::make_unique<POSTRequest>(data);
     case DELETE:
         return std::make_unique<DELETERequest>(data);
+    case BAD_REQUEST:
+        return std::make_unique<ErrorRequest>(data, 400);
     default:
-        throw std::runtime_error("Invalid HTTP method");
+        return std::make_unique<ErrorRequest>(data, 501);
     }
 }

@@ -11,5 +11,5 @@ public:
     GETRequest(GETRequest &&) = default;
     ~GETRequest() override = default;
     
-    void handle() override;
+    std::string handle() override;
 };

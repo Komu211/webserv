@@ -11,5 +11,5 @@ public:
     POSTRequest(POSTRequest &&) = default;
     ~POSTRequest() override = default;
     
-    void handle() override;
+    std::string handle() override;
 };

@@ -3,9 +3,10 @@
 #include <memory>
 #include "HTTPRequest.hpp"
 #include "HTTPRequestData.hpp"
-#include "./types/GETRequest.hpp"
-#include "./types/POSTRequest.hpp"
-#include "./types/DELETERequest.hpp"
+#include "GETRequest.hpp"
+#include "POSTRequest.hpp"
+#include "DELETERequest.hpp"
+#include "ErrorRequest.hpp"
 
 class HTTPRequestFactory
 {

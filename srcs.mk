@@ -13,7 +13,8 @@ SRCS		=	main.cpp \
 				HTTPRequest.cpp \
                 GETRequest.cpp \
                 DELETERequest.cpp \
-                POSTRequest.cpp
+                POSTRequest.cpp \
+                ErrorRequest.cpp
 
 
 INCLUDES	=	-Iincludes \

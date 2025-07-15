@@ -151,6 +151,7 @@ void Server::readFromClients()
             try
             {
                 HTTPRequestData data = HTTPRequestParser::parse(currentRequest);
+                std::cout << "Parsed request body:\n" << data.body << std::endl;
                 _clientData[clientFd].parsedRequest = HTTPRequestFactory::createRequest(data);
                 _pollManager.updateEvents(clientFd, POLLOUT);
                 _clientData[clientFd].partialRequest.clear();
@@ -209,7 +210,7 @@ void Server::respondToClient(int clientFd)
     // TODO: Create a HTTPResponse class and implement handle() method
     if (_clientData[clientFd].pendingResponse.response.empty())
         _clientData[clientFd].pendingResponse = {
-        "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello, World!",
+        _clientData[clientFd].parsedRequest->handle(),
         0};
     auto pendingResponse = writeResponseToClient(clientFd);
     if (pendingResponse.response.size() == pendingResponse.sent)

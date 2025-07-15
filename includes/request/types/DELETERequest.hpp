@@ -11,5 +11,5 @@ public:
     DELETERequest(DELETERequest &&) = default;
     ~DELETERequest() override = default;
 
-    void handle() override;
+    std::string handle() override;
 };
