@@ -1,0 +1,11 @@
+#include "../../../includes/request/types/DELETERequest.hpp"
+
+DELETERequest::DELETERequest(HTTPRequestData data) :
+    HTTPRequest(data)
+{}
+
+std::string DELETERequest::handle()
+{
+    // Replace this with actual logic for handling GET requests
+    return "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\ncontent-length: 13\r\n\r\nHello, World!";
+}

@@ -1,7 +1,12 @@
 #include "Server.hpp"
 
+#include "HTTPRequest.hpp"
+#include "HTTPRequestFactory.hpp"
+
+#include <utility>
+
 Server::Server(std::string configFileName)
-    : _global_config{configFileName} // Initiate parsing of the config file
+    : _global_config{std::move(configFileName)} // Initiate parsing of the config file
 {
     // Create listening sockets
     for (const auto &server_config : _global_config.getServerConfigs())
@@ -37,7 +42,7 @@ Server::Server(std::string configFileName)
 }
 
 // // Not needed + Inefficient: making a copy of vector on every return
-// std::vector<ServerConfig> Server::get_configs() const
+// std::vector<ServerConfig> Server::get_configs() const.0
 // {
 //     return _configs;
 // }
@@ -59,22 +64,9 @@ void Server::run()
         std::cout << " - " << *sockPtr << '\n';
     }
 
-    std::unordered_map<int, std::string> clientRequests;
-
     while (g_shutdownServer == 0)
     {
-        /*
-         *TODO:
-         * 1. Poll for events on the watched FDs ✅
-         * 2. Accept new connections ✅
-         * 3. Read requests from clients ✅
-         * 4. Read available internal files
-         * 5. Send responses to clients ✅
-         * 6. Close finished and timeout connections ✅
-         */
-
-        const int        pollResult = poll(_pollManager.data(), _pollManager.size(), -1);
-        std::vector<int> clientsToRemove;
+        const int   pollResult = poll(_pollManager.data(), _pollManager.size(), -1);
 
         if (pollResult < 0)
         {
@@ -85,76 +77,44 @@ void Server::run()
             std::cerr << "Poll error: " << strerror(errno) << '\n';
             continue;
         }
-        if (pollResult == 0)
-        {
-            std::cout << "No events occurred within the timeout." << '\n';
-            continue;
-        }
-
-        // Stage 1: Handle new connections
-        for (const int serverFd : _pollManager.getReadableServerSockets())
-        {
-            try
-            {
-                acceptNewConnections(serverFd, clientRequests);
-            }
-            catch (const std::runtime_error &e)
-            {
-                std::cerr << e.what() << '\n';
-            }
-        }
+        // Stage 1: Accept new connections
+        acceptNewConnections();
 
         // Stage 2: Read from clients
-        for (int clientFd : _pollManager.getReadableClientSockets())
-        {
-            try
-            {
-                readFromClient(clientFd, clientRequests, clientsToRemove);
-                // TODO: Add check here (or somewhere) for response is ready to be sent back
-            }
-            catch (const std::runtime_error &e)
-            {
-                std::cerr << "Error reading from client " << clientFd << ": " << e.what() << '\n';
-                clientsToRemove.push_back(clientFd);
-            }
-        }
+        readFromClients();
 
         // Stage 3: Write responses to clients
-        for (int clientFd : _pollManager.getWritableClientSockets())
-        {
-            try
-            {
-                writeResponseToClient(clientFd, clientRequests);
-                // No need to close the connection unless request has `Connection: close` header (HTTP/1.1)
-                // TODO: add check for `Connection: close` header then conditionally add to clientsToRemove
-                // clientsToRemove.push_back(clientFd);
-            }
-            catch (const std::runtime_error &e)
-            {
-                std::cerr << "Error writing to client " << clientFd << ": " << e.what() << '\n';
-                clientsToRemove.push_back(clientFd);
-            }
-        }
+        respondToClients();
 
         // Clean up closed connections
-        for (int fd : clientsToRemove)
-        {
-            _pollManager.removeSocket(fd);
-            clientRequests.erase(fd);
-            close(fd);
-        }
+        closeConnections();
     }
     std::cout << "Server successfully stopped. Goodbye!" << '\n';
 }
 
-void Server::acceptNewConnections(int serverFd, std::unordered_map<int, std::string> &clientRequests)
+void Server::acceptNewConnections()
+{
+    for (const int serverFd : _pollManager.getReadableServerSockets())
+    {
+        try
+        {
+            acceptNewConnection(serverFd);
+        }
+        catch (const std::runtime_error &e)
+        {
+            std::cerr << e.what() << '\n';
+        }
+    }
+}
+
+void Server::acceptNewConnection(int serverFd)
 {
     const int clientFd = accept(serverFd, nullptr, nullptr);
     if (clientFd >= 0)
     {
         std::cout << "Accepted new connection via: \n" << *(_sockets[serverFd]) << '\n';
-        _pollManager.addClientSocket(clientFd); // POLLOUT should only be registered after a client sends a request and a response is ready to be sent back
-        clientRequests[clientFd] = "";
+        _pollManager.addClientSocket(clientFd);
+        _clientData[clientFd] = {"", nullptr, {}};
     }
     else
     {
@@ -168,60 +128,127 @@ void Server::acceptNewConnections(int serverFd, std::unordered_map<int, std::str
         throw std::runtime_error("Error accepting new connection: " + std::string(strerror(errno)));
     }
 }
-
-void Server::readFromClient(int clientFd, std::unordered_map<int, std::string> &clientRequests, std::vector<int> &clientsToRemove)
+void Server::readFromClients()
 {
-    char    buffer[1024]; // ! Requests can be larger than 1024 bytes; read in a loop
-    ssize_t bytesRead = read(clientFd, buffer, sizeof(buffer) - 1);
+    for (int clientFd : _pollManager.getReadableClientSockets())
+    {
+        std::string currentRequest;
+        try
+        {
+            currentRequest = readFromClient(clientFd);
+            std::cout << "Received request from client: " << clientFd << '\n';
+        }
+        catch (const std::runtime_error &e)
+        {
+            std::cerr << "Error reading from client " << clientFd << ": " << e.what() << '\n';
+            _clientsToRemove.insert(clientFd);
+            continue;
+        }
+        if (currentRequest.empty())
+            _clientsToRemove.insert(clientFd);
+        else if (HTTPRequestParser::isValidRequest(currentRequest))
+        {
+            try
+            {
+                HTTPRequestData data = HTTPRequestParser::parse(currentRequest);
+                std::cout << "Parsed request body:\n" << data.body << std::endl;
+                _clientData[clientFd].parsedRequest = HTTPRequestFactory::createRequest(data);
+                _pollManager.updateEvents(clientFd, POLLOUT);
+                _clientData[clientFd].partialRequest.clear();
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error parsing request: " << e.what() << '\n';
+                _clientsToRemove.insert(clientFd);
+            }
+        }
+        else
+            _clientData[clientFd].partialRequest = currentRequest;
+    }
+}
+
+std::string Server::readFromClient(int clientFd)
+{
+    char          buffer[BUFFER_SIZE];
+    const ssize_t bytesRead = read(clientFd, buffer, BUFFER_SIZE - 1);
+    std::string   partialRequest = _clientData[clientFd].partialRequest;
 
     if (bytesRead > 0)
     {
         buffer[bytesRead] = '\0';
-        clientRequests[clientFd] += buffer;
-
-        // Put the received request into a file - TODO: replace with a proper request parser
-        if (std::ofstream requestFile("request_" + std::to_string(clientFd) + ".txt"); requestFile.is_open())
-        {
-            requestFile << clientRequests[clientFd];
-            requestFile.close();
-        }
-        else
-        {
-            throw std::runtime_error("Error opening file to write request: " + std::string(strerror(errno)));
-        }
-        // TODO: Add check here (or somewhere) for response is ready to be sent
-        _pollManager.updateEvents(clientFd, POLLOUT); // Register interest in writing back to client assuming that response is ready
+        partialRequest += buffer;
+        return partialRequest;
     }
     else if (bytesRead == 0)
-    {
-        // Client closed connection
-        std::cout << "Client " << clientFd << " closed connection" << '\n';
-        clientsToRemove.push_back(clientFd);
-    }
+        return ""; // Client has closed connection
     else
-    {
-        // Error reading from client
         throw std::runtime_error("Error reading from client " + std::to_string(clientFd) + ": " + strerror(errno));
+}
+void Server::respondToClients()
+{
+    for (int clientFd : _pollManager.getWritableClientSockets())
+    {
+        if (_clientData[clientFd].parsedRequest != nullptr)
+        {
+            try
+            {
+                respondToClient(clientFd);
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error writing to client " << clientFd << ": " << e.what() << '\n';
+                _clientsToRemove.insert(clientFd);
+            }
+        }
     }
 }
-void Server::writeResponseToClient(int clientFd, std::unordered_map<int, std::string> &clientRequests)
-{
-    if (!clientRequests[clientFd].empty())
-    {
-        std::string response = "HTTP/1.1 200 OK\r\n"
-                               "Content-Type: text/plain\r\n"
-                               "Content-Length: 13\r\n"
-                               "\r\n"
-                               "Hello, world!";
 
-        if (send(clientFd, response.c_str(), response.size(), 0) > 0)
-        {
-            std::cout << "Sent response to client " << clientFd << '\n';
-        }
-        else
-        {
-            throw std::runtime_error("Error sending response to client " + std::to_string(clientFd) + ": " + strerror(errno));
-        }
+void Server::respondToClient(int clientFd)
+{
+    std::cout << "Sending response to client: " << clientFd << '\n';
+    // HTTPResponse = clientRequest->handle();
+    // TODO: Create a HTTPResponse class and implement handle() method
+    if (_clientData[clientFd].pendingResponse.response.empty())
+        _clientData[clientFd].pendingResponse = {
+        _clientData[clientFd].parsedRequest->handle(),
+        0};
+    auto pendingResponse = writeResponseToClient(clientFd);
+    if (pendingResponse.response.size() == pendingResponse.sent)
+    {
+        std::cout << "All sent, switch back to listening" << std::endl;
+        if (_clientData[clientFd].parsedRequest->isCloseConnection())
+            _clientsToRemove.insert(clientFd);
+        _clientData[clientFd].pendingResponse = {};
+        _clientData[clientFd].parsedRequest = nullptr;
+        _pollManager.updateEvents(clientFd, POLLIN); // Start monitoring for reading new requests
+        _pollManager.removeEvents(clientFd, POLLOUT); // Stop monitoring for writing until new request arrives / new response is ready
     }
-    _pollManager.removeEvents(clientFd, POLLOUT); // Stop monitoring for writing until new request arrives / new response is ready
+    else
+        _clientData[clientFd].pendingResponse = pendingResponse;
+}
+
+PendingResponse Server::writeResponseToClient(int clientFd)
+{
+    auto pendingResponses = _clientData[clientFd].pendingResponse;
+    auto responseRemainder = pendingResponses.response.c_str() + pendingResponses.sent;
+    auto remainingToSend = pendingResponses.response.size() - pendingResponses.sent;
+
+    // Send response back to client
+    ssize_t bytesWritten = write(clientFd, responseRemainder, remainingToSend);
+    if (bytesWritten < 0)
+        throw std::runtime_error("Error writing to client " + std::to_string(clientFd) + ": " + strerror(errno));
+    pendingResponses.sent += bytesWritten;
+    return pendingResponses;
+}
+
+void Server::closeConnections()
+{
+    for (int fd : _clientsToRemove)
+    {
+        _pollManager.removeSocket(fd);
+        _clientData.erase(fd);
+        close(fd);
+
+    }
+    _clientsToRemove.clear();
 }

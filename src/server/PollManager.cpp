@@ -13,9 +13,9 @@ std::size_t PollManager::size() const
     return _pollfds.size();
 }
 
-void PollManager::addSocket(int fd, short events)
+void PollManager::addSocket(const int fd, const short events)
 {
-    struct pollfd pfd;
+    pollfd pfd{};
     pfd.fd = fd;
     pfd.events = events;
     pfd.revents = 0;
@@ -30,8 +30,7 @@ void PollManager::addServerSocket(int fd)
 
 void PollManager::addClientSocket(int fd)
 {
-    // POLLOUT should only be registered after a client sends a request and a response is ready to be sent back
-    addSocket(fd, POLLIN /*| POLLOUT*/); 
+    addSocket(fd, POLLIN);
     _isServerSocket[fd] = false;
 }
 
@@ -143,7 +142,7 @@ std::vector<int> PollManager::getWritableClientSockets() const
     return writableSockets;
 }
 
-std::vector<struct pollfd> PollManager::getPollFDs()
+std::vector<pollfd> PollManager::getPollFDs()
 {
     return _pollfds;
 }

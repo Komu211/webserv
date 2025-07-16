@@ -1,14 +1,5 @@
 #include "ServerConfig.hpp"
 
-// ! To be deleted
-// ServerConfig::ServerConfig()
-// {
-//     _host = "localhost";
-//     _port = 8080;
-//     _root = ".";
-//     _serverNames = {"localhost"};
-// }
-
 // Main parameterized ctor (parses server_block_str, inherits the rest from global_config)
 ServerConfig::ServerConfig(const std::string &server_block_str, const GlobalConfig &global_config)
     : _root{global_config.getRoot()}
@@ -78,24 +69,6 @@ const std::map<std::string, std::unique_ptr<LocationConfig>> &ServerConfig::getL
 {
     return _locations_map;
 }
-
-// // ! Need to update because server can listen to multiple host:ports combinations
-// int ServerConfig::getPort() const
-// {
-//     return _port;
-// }
-
-// // ! remove (not needed)
-// void ServerConfig::setPort(int newPort)
-// {
-//     _port = newPort;
-// }
-
-// // ! Need to update because server can listen to multiple host:ports combinations
-// std::string ServerConfig::getHost() const
-// {
-//     return _host;
-// }
 
 /* Parsing logic */
 
@@ -206,10 +179,9 @@ void ServerConfig::setAddrInfo()
 
     for (const auto &hostPort : _listen_host_port)
     {
-        struct addrinfo *res;
-        struct addrinfo  hints;
+        addrinfo *res;
+        addrinfo  hints = {};
 
-        std::memset(&hints, 0, sizeof(hints));
         hints.ai_flags = AI_PASSIVE;     // Fill in `sockaddr` suitable for bind()
         hints.ai_family = AF_UNSPEC;     // IPv4 or IPv6
         hints.ai_socktype = SOCK_STREAM; // TCP
@@ -487,10 +459,10 @@ void ServerConfig::setErrorPage(std::string directive)
     std::string errorPageURI{args.back()};
     args.pop_back();
 
-    // Remove any error pages inherited from global context to override them
-    if (!_seen_error_page)
-        _error_pages_map.clear();
-    _seen_error_page = true;
+    // (it would be wrong to) Remove any error pages inherited from global context to override them
+    // if (!_seen_error_page)
+    //     _error_pages_map.clear();
+    // _seen_error_page = true;
 
     for (auto &elem : args)
     {
