@@ -9,3 +9,8 @@ a.out
 temp_files
 test*
 request_*.txt
+
+CMake*
+build/
+build_debug/
+build_release/
