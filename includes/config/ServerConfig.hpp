@@ -28,7 +28,7 @@ public:
     ServerConfig(const std::string &server_block_str, const GlobalConfig &global_config);
 
     // OCF
-    ServerConfig() = delete; // ! Just for testing; should mark as `=delete` later
+    ServerConfig() = delete;
     ServerConfig(const ServerConfig &other) = delete;
     ServerConfig(ServerConfig &&other) = default;
     ServerConfig &operator=(const ServerConfig &other) = delete;
@@ -46,13 +46,6 @@ public:
     [[nodiscard]] const std::map<int, std::string>                             &getErrorPagesMap() const;
     [[nodiscard]] const std::map<std::string, std::unique_ptr<LocationConfig>> &getLocationsMap() const;
     // TODO cgi getter
-
-    // // ! remove the below getters
-    // [[nodiscard]] std::string getHost() const; // !
-    // [[nodiscard]] int         getPort() const; // !
-
-    // // ! remove
-    // void setPort(int newPort); // !
 
 private:
     // All `host:port` combinations this server listens to // * Better convert to unordered_set or unordered_map
@@ -79,10 +72,10 @@ private:
     // URI that will be shown for the specified error codes (must be between 300 and 599)
     std::map<int, std::string> _error_pages_map{};
 
-    // // ! Should remove because server can listen to multiple host:port combinations
+    // // remove (not needed)
     // std::string _host;
 
-    // // ! Should remove because server can listen to multiple host:port combinations
+    // // remove (not needed)
     // int _port;
 
     // Sets configuration depending on a request URI

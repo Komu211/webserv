@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 #include <sstream>
+#include <algorithm> /* std::tranform() */
 
 class HTTPRequestParser
 {

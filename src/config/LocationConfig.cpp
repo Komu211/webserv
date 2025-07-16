@@ -264,10 +264,10 @@ void LocationConfig::setErrorPage(std::string directive)
     std::string errorPageURI{args.back()};
     args.pop_back();
 
-    // Remove any error pages inherited from server context to override them
-    if (!_seen_error_page)
-        _error_pages_map.clear();
-    _seen_error_page = true;
+    // (it would be wrong to) Remove any error pages inherited from server context to override them
+    // if (!_seen_error_page)
+    //     _error_pages_map.clear();
+    // _seen_error_page = true;
 
     for (auto &elem : args)
     {

@@ -58,16 +58,11 @@ private:
 
 public:
     explicit Server(std::string configFileName);
-    // explicit Server(std::vector<ServerConfig> configs); // ! remove
     Server(const Server &src) = delete; // Cannot copy GlobalConfig and no need to copy
     Server(Server &&src) = default;
     Server &operator=(const Server &src) = delete; // Cannot copy GlobalConfig and no need to copy
     Server &operator=(Server &&src) = delete;      // Cannot copy/move GlobalConfig and no need to copy/move
     ~Server() = default;
-
-    // Getters and Setters
-    // [[nodiscard]] std::vector<ServerConfig> get_configs() const;                                   // ! remove
-    // void                                    set_configs(const std::vector<ServerConfig> &configs); // ! remove
 
     void fillPollManager();
     void run();
