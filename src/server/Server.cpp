@@ -14,7 +14,6 @@ Server::Server(std::string configFileName)
         // Each server_config can be listening on multiple host_port combinations
         for (const auto &addr_info_pair : server_config->getAddrInfoVec())
         {
-            // TODO: Add fd to server_name mapping because both host:port (i.e., fd) and server_name must match for request routing
             auto newSocket{std::make_unique<Socket>(addr_info_pair)};
             bool exists = false;
             for (const auto &[_, existingSocket] : _sockets)
@@ -34,7 +33,10 @@ Server::Server(std::string configFileName)
                 std::cerr << "Error initializing socket: " << e.what() << '\n';
                 continue;
             }
-            _sockets[newSocket->get_fd()] = std::move(newSocket);
+            
+            int socket_fd = newSocket->get_fd();
+            _sockets[socket_fd] = std::move(newSocket);
+            _socket_to_server_config[socket_fd] = server_config.get();
         }
     }
     if (_sockets.empty())
@@ -115,6 +117,7 @@ void Server::acceptNewConnection(int serverFd)
         std::cout << "Accepted new connection via: \n" << *(_sockets[serverFd]) << '\n';
         _pollManager.addClientSocket(clientFd);
         _clientData[clientFd] = {"", nullptr, {}};
+        _client_to_server_config[clientFd] = _socket_to_server_config[serverFd];
     }
     else
     {
@@ -152,6 +155,13 @@ void Server::readFromClients()
             {
                 HTTPRequestData data = HTTPRequestParser::parse(currentRequest);
                 std::cout << "Parsed request body:\n" << data.body << std::endl;
+                
+                const ServerConfig* server_config = _client_to_server_config[clientFd];
+                
+                const LocationConfig* location_config = findLocationConfig(data.uri, server_config);
+                
+                std::cout << "Using ServerConfig: " << (server_config ? "found" : "not found") 
+                          << ", LocationConfig: " << (location_config ? "found" : "not found") << std::endl;
                 _clientData[clientFd].parsedRequest = HTTPRequestFactory::createRequest(data);
                 _pollManager.updateEvents(clientFd, POLLOUT);
                 _clientData[clientFd].partialRequest.clear();
@@ -247,8 +257,33 @@ void Server::closeConnections()
     {
         _pollManager.removeSocket(fd);
         _clientData.erase(fd);
+        
+        _client_to_server_config.erase(fd);
+        
         close(fd);
 
     }
     _clientsToRemove.clear();
+}
+
+const LocationConfig* Server::findLocationConfig(const std::string& uri, const ServerConfig* server_config) const
+{
+    if (!server_config)
+        return nullptr;
+        
+    const auto& locations = server_config->getLocationsMap();
+    
+    const LocationConfig* best_match = nullptr;
+    size_t longest_match = 0;
+    
+    for (const auto& [location_path, location_config] : locations)
+    {
+        if (uri.find(location_path) == 0 && location_path.length() > longest_match)
+        {
+            longest_match = location_path.length();
+            best_match = location_config.get();
+        }
+    }
+    
+    return best_match;
 }
