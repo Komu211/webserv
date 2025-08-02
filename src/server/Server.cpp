@@ -116,8 +116,7 @@ void Server::acceptNewConnection(int serverFd)
     {
         std::cout << "Accepted new connection via: \n" << *(_sockets[serverFd]) << '\n';
         _pollManager.addClientSocket(clientFd);
-        _clientData[clientFd] = {"", nullptr, {}};
-        _client_to_server_config[clientFd] = _socket_to_server_config[serverFd];
+        _clientData[clientFd] = {"", nullptr, {}, _socket_to_server_config[serverFd]};
     }
     else
     {
@@ -156,7 +155,7 @@ void Server::readFromClients()
                 HTTPRequestData data = HTTPRequestParser::parse(currentRequest);
                 std::cout << "Parsed request body:\n" << data.body << std::endl;
                 
-                const ServerConfig* server_config = _client_to_server_config[clientFd];
+                const ServerConfig* server_config = _clientData[clientFd].serverConfig;
                 
                 const LocationConfig* location_config = findLocationConfig(data.uri, server_config);
                 
@@ -257,9 +256,6 @@ void Server::closeConnections()
     {
         _pollManager.removeSocket(fd);
         _clientData.erase(fd);
-        
-        _client_to_server_config.erase(fd);
-        
         close(fd);
 
     }

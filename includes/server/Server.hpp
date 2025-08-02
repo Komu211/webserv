@@ -35,6 +35,7 @@ struct ClientData
     std::string partialRequest;
     std::unique_ptr<HTTPRequest> parsedRequest;
     PendingResponse pendingResponse;
+    const ServerConfig* serverConfig;
 };
 
 class Server
@@ -44,8 +45,6 @@ private:
     std::unordered_map<int, std::unique_ptr<Socket>> _sockets;
     
     std::unordered_map<int, const ServerConfig*>     _socket_to_server_config;
-    
-    std::unordered_map<int, const ServerConfig*>     _client_to_server_config;
     
     PollManager                                      _pollManager;
     std::unordered_map<int, ClientData>              _clientData;
