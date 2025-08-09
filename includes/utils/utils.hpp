@@ -5,6 +5,9 @@
 #include <vector>
 #include <stdexcept>
 #include <set>
+#include <chrono>
+#include <sstream>
+#include <iomanip>
 
 /* Trim the start and end of a string using a given charset (default whitespaces) */
 void trim(std::string &str, const std::string &charset = " \t\n\r\f\v");
@@ -32,3 +35,9 @@ bool isHttpMethod(const std::string& str);
 
 // Check if an IP address is localhost, 0.0.0.0, or loopback
 bool isStandardAddress(const std::string& address);
+
+// Get current system date and time in HTTP format
+std::string getCurrentGMTString();
+
+// Returns the standard HTTP reason phrase (as string) for an HTTP status code
+std::string reasonPhraseFromStatusCode(int code);

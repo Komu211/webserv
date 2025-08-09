@@ -63,6 +63,7 @@ private:
     const LocationConfig* findLocationConfig(const std::string& uri, const ServerConfig* server_config) const;
 
 public:
+    Server() = delete;
     explicit Server(std::string configFileName);
     Server(const Server &src) = delete; // Cannot copy GlobalConfig and no need to copy
     Server(Server &&src) = default;

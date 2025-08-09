@@ -7,6 +7,7 @@ a.out
 *.d
 *.out
 temp_files
+rough
 test*
 request_*.txt
 
