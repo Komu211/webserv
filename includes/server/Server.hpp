@@ -35,6 +35,7 @@ struct ClientData
     std::string partialRequest;
     std::unique_ptr<HTTPRequest> parsedRequest;
     PendingResponse pendingResponse;
+    const ServerConfig* serverConfig;
 };
 
 class Server
@@ -42,6 +43,9 @@ class Server
 private:
     GlobalConfig                                     _global_config;
     std::unordered_map<int, std::unique_ptr<Socket>> _sockets;
+    
+    std::unordered_map<int, const ServerConfig*>     _socket_to_server_config;
+    
     PollManager                                      _pollManager;
     std::unordered_map<int, ClientData>              _clientData;
     std::unordered_set<int> _clientsToRemove;
@@ -55,6 +59,8 @@ private:
     void respondToClient(int clientFd);
     void closeConnections();
     PendingResponse writeResponseToClient(int clientFd);
+    
+    const LocationConfig* findLocationConfig(const std::string& uri, const ServerConfig* server_config) const;
 
 public:
     explicit Server(std::string configFileName);
