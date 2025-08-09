@@ -1,12 +1,12 @@
 #pragma once
 
-#include "../HTTPRequest.hpp"
+#include "HTTPRequest.hpp"
 
 class DELETERequest final : public HTTPRequest
 {
 public:
     DELETERequest() = delete;
-    explicit DELETERequest(HTTPRequestData data);
+    explicit DELETERequest(HTTPRequestData data, const LocationConfig* location_config);
     DELETERequest(const DELETERequest &) = default;
     DELETERequest(DELETERequest &&) = default;
     ~DELETERequest() override = default;

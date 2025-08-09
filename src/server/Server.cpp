@@ -161,7 +161,7 @@ void Server::readFromClients()
                 
                 std::cout << "Using ServerConfig: " << (server_config ? "found" : "not found") 
                           << ", LocationConfig: " << (location_config ? "found" : "not found") << std::endl;
-                _clientData[clientFd].parsedRequest = HTTPRequestFactory::createRequest(data);
+                _clientData[clientFd].parsedRequest = HTTPRequestFactory::createRequest(data, location_config);
                 _pollManager.updateEvents(clientFd, POLLOUT);
                 _clientData[clientFd].partialRequest.clear();
             }

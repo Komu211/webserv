@@ -11,5 +11,5 @@
 class HTTPRequestFactory
 {
 public:
-    static std::unique_ptr<HTTPRequest> createRequest(const HTTPRequestData& data);
+    static std::unique_ptr<HTTPRequest> createRequest(const HTTPRequestData& data, const LocationConfig* location_config);
 };

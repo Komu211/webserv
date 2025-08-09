@@ -4,15 +4,18 @@
 #include <vector>
 #include <iostream>
 #include "HTTPRequestData.hpp"
+#include "LocationConfig.hpp"
 
+class LocationConfig;
 class HTTPRequest
 {
 protected:
     HTTPRequestData _data;
+    const LocationConfig* _effective_config;
 
 public:
     HTTPRequest() = delete;
-    explicit HTTPRequest(HTTPRequestData data);
+    explicit HTTPRequest(HTTPRequestData data, const LocationConfig* location_config);
     virtual ~HTTPRequest() = default;
 
     // Where the magic happens

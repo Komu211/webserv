@@ -1,7 +1,7 @@
 #include "HTTPRequest.hpp"
 
-HTTPRequest::HTTPRequest(HTTPRequestData data)
-    : _data(std::move(data))
+HTTPRequest::HTTPRequest(HTTPRequestData data, const LocationConfig* location_config)
+    : _data(std::move(data)), _effective_config(location_config)
 {
 }
 

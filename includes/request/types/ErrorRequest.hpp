@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../HTTPRequest.hpp"
+#include "HTTPRequest.hpp"
 
 class ErrorRequest final : public HTTPRequest
 {
@@ -8,7 +8,7 @@ private:
     int _errorCode;
 public:
     ErrorRequest() = delete;
-    explicit ErrorRequest(HTTPRequestData data, int errorCode);
+    explicit ErrorRequest(HTTPRequestData data, int errorCode, const LocationConfig* location_config);
     ErrorRequest(const ErrorRequest &) = default;
     ErrorRequest(ErrorRequest &&) = default;
     ~ErrorRequest() override = default;

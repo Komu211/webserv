@@ -1,7 +1,7 @@
-#include "../../../includes/request/types/DELETERequest.hpp"
+#include "DELETERequest.hpp"
 
-DELETERequest::DELETERequest(HTTPRequestData data) :
-    HTTPRequest(data)
+DELETERequest::DELETERequest(HTTPRequestData data, const LocationConfig* location_config) :
+    HTTPRequest(data, location_config)
 {}
 
 std::string DELETERequest::handle()

@@ -1,7 +1,7 @@
-#include "../../../includes/request/types/ErrorRequest.hpp"
+#include "ErrorRequest.hpp"
 
-ErrorRequest::ErrorRequest(HTTPRequestData data, int errorCode) :
-    HTTPRequest(data), _errorCode(errorCode)
+ErrorRequest::ErrorRequest(HTTPRequestData data, int errorCode, const LocationConfig* location_config) :
+    HTTPRequest(data, location_config), _errorCode(errorCode)
 {}
 
 std::string ErrorRequest::handle()
