@@ -1,13 +1,13 @@
 #include "ResponseWriter.hpp"
 
 ResponseWriter::ResponseWriter(int statusCode, const std::unordered_map<std::string, std::string> &headers, const std::string &response_body)
-    : _start_line(std::string("HTTP/1.1 ") + std::to_string(statusCode) + reasonPhraseFromStatusCode(statusCode))
+    : _start_line(std::string("HTTP/1.1 ") + std::to_string(statusCode) + " " + reasonPhraseFromStatusCode(statusCode))
     , _headers()
     , _response_body(response_body)
 {
     _headers["Date"] = getCurrentGMTString();
     _headers["Server"] = "Webserv";
-    _headers["Content-Length"] = response_body.length();
+    _headers["Content-Length"] = std::to_string(response_body.length());
 
     for (const auto &[key, value] : headers)
         _headers[key] = value;

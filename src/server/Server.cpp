@@ -20,7 +20,7 @@ Server::Server(std::string configFileName)
             {
                 if (*existingSocket == *newSocket)
                     exists = true;
-                std::cout << "[warn] conflicting listen on " << existingSocket->get_host() << ':' << existingSocket->get_port() << ", ignored" << '\n';
+                // std::cout << "[warn] conflicting listen on " << existingSocket->get_host() << ':' << existingSocket->get_port() << ", ignored" << '\n';
             }
             if (exists)
                 continue;
