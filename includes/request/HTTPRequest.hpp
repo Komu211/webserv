@@ -27,6 +27,8 @@ protected: // helper functions to use within public member functions of inherite
     std::string getDirectoryListingBody(const std::filesystem::path& dirPath) const;
     // Determine "Content-Type" header based on a given file extension
     std::string getMIMEtype(const std::string& extension) const;
+    // Redirection
+    std::string handleRedirection(const std::pair<int, std::string> &redirectInfo) const;
 
 public:
     HTTPRequest() = delete;

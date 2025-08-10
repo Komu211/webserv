@@ -86,9 +86,29 @@ std::string HTTPRequest::getDirectoryListingBody(const std::filesystem::path& di
 
     std::string html_body {"<!DOCTYPE html>\n<html>\n<head>\n"};
     html_body += "<title>Index of " + dirPath.string() + "</title>\n";
-    //
+
+    // TODO: Incomplete function
 
     return html_body;
+}
+
+std::string HTTPRequest::handleRedirection(const std::pair<int, std::string> &redirectInfo) const
+{
+    std::string codeWithReasonPhrase {std::to_string(redirectInfo.first) + " " + reasonPhraseFromStatusCode(redirectInfo.first)};
+    std::string responseBody{"<html><head><title>"};
+    responseBody += codeWithReasonPhrase;
+    responseBody += "</title></head><body><h1>";
+    responseBody += codeWithReasonPhrase;
+    responseBody += "</h1></body></html>";
+
+    std::unordered_map<std::string, std::string> headers;
+    headers["Content-Type"] = "text/html";
+
+    if (!redirectInfo.second.empty())
+        headers["Location"] = redirectInfo.second;
+    ResponseWriter response(redirectInfo.first, headers, responseBody);
+
+    return response.write();
 }
 
 std::string HTTPRequest::getMIMEtype(const std::string& extension) const
