@@ -22,5 +22,5 @@ public:
 private:
     std::string _start_line;
     std::unordered_map<std::string, std::string> _headers;
-    const std::string& _response_body;
+    std::string _response_body;
 };

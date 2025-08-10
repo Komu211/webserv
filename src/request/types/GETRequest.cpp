@@ -7,7 +7,8 @@ GETRequest::GETRequest(HTTPRequestData data, const LocationConfig* location_conf
 std::string GETRequest::handle()
 {
     // Check if GET requests for this URI are allowed
-    if (_effective_config->getLimitExcept().find("GET") == _effective_config->getLimitExcept().end())
+    if (!_effective_config->getLimitExcept().empty() &&
+        _effective_config->getLimitExcept().find("get") == _effective_config->getLimitExcept().end())
     {
         // Method not allowed
         ResponseWriter response(405, {{"Content-Type", "text/html"}}, getErrorResponseBody(405));

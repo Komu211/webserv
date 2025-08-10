@@ -15,3 +15,5 @@ CMake*
 build/
 build_debug/
 build_release/
+
+assets
