@@ -206,6 +206,13 @@ void ServerConfig::setAddrInfo()
 
 void ServerConfig::initLocationConfig()
 {
+    if (_locationConfigsStr.empty())
+    {
+        // User did not provide any location configuration
+        // Create a LocationConfig `/` that inherits everything from ServerConfig
+        _locationConfigsStr.push_back("/ {}");
+    }
+
     for (auto &elem : _locationConfigsStr)
     {
         auto openingBracePos{elem.find('{')};

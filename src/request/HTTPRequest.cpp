@@ -84,7 +84,7 @@ std::string HTTPRequest::getDirectoryListingBody(const std::filesystem::path& di
     if (!std::filesystem::exists(dirPath))
         return getErrorResponseBody(404); // Should never happen but just to be safe
 
-    std::string html_body = "<!DOCTYPE html>\n<html>\n<head>\n";
+    std::string html_body {"<!DOCTYPE html>\n<html>\n<head>\n"};
     html_body += "<title>Index of " + dirPath.string() + "</title>\n";
     //
 
