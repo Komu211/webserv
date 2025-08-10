@@ -35,7 +35,7 @@ std::string GETRequest::handle()
                 try
                 {
                     // Will throw for non-existent file or other reading error
-                    // Can also check permissions to return 404 Forbidden, but not necessary
+                    // Can also check permissions to return 403 Forbidden, but not necessary
                     std::string fileContents {readFileToString(curFilePath.string())};
 
                     std::unordered_map<std::string, std::string> headers;

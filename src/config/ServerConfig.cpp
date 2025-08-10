@@ -206,13 +206,6 @@ void ServerConfig::setAddrInfo()
 
 void ServerConfig::initLocationConfig()
 {
-    if (_locationConfigsStr.empty())
-    {
-        // User did not provide any location configuration
-        // Create a LocationConfig `/` that inherits everything from ServerConfig
-        _locationConfigsStr.push_back("/ {}");
-    }
-
     for (auto &elem : _locationConfigsStr)
     {
         auto openingBracePos{elem.find('{')};
@@ -236,6 +229,13 @@ void ServerConfig::initLocationConfig()
 
         // _locations_map[locName] = LocationConfig(elem.substr(openingBracePos), *this);
         _locations_map.emplace(locName, std::make_unique<LocationConfig>(elem.substr(openingBracePos), *this));
+    }
+
+    if (_locations_map.find("/") == _locations_map.end())
+    {
+        // User did not provide root location configuration
+        // Create a LocationConfig `/` that inherits everything from ServerConfig
+        _locations_map.emplace("/", std::make_unique<LocationConfig>("{}", *this));
     }
 }
 
