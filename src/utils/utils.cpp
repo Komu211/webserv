@@ -196,7 +196,7 @@ std::string getCurrentGMTString()
     auto now = std::chrono::system_clock::now();
 
     // Convert to time_t for use with gmtime
-    auto time_t = std::chrono::system_clock::to_time_t(now);
+    std::time_t time_t = std::chrono::system_clock::to_time_t(now);
 
     // Convert to GMT/UTC tm struct
     std::tm *gmt_tm = std::gmtime(&time_t);
@@ -206,6 +206,51 @@ std::string getCurrentGMTString()
     oss << std::put_time(gmt_tm, "%a, %d %b %Y %H:%M:%S GMT");
 
     return oss.str();
+}
+
+std::string getLastModTimeHTTP(const std::filesystem::path& filePath)
+{
+    try
+    {
+        if (std::filesystem::exists(filePath))
+        {
+            // Get last modification time in fileclock format
+            auto ftime = std::filesystem::last_write_time(filePath);
+
+            // Convert to system_clock time_point
+            auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(ftime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
+
+            // Convert to time_t for use with gmtime
+            std::time_t time_t = std::chrono::system_clock::to_time_t(sctp);
+            
+            // Convert to GMT/UTC tm struct
+            std::tm *gmt_tm = std::gmtime(&time_t);
+
+            // Format using put_time
+            std::ostringstream oss;
+            oss << std::put_time(gmt_tm, "%a, %d %b %Y %H:%M:%S GMT");
+
+            return oss.str();
+        }
+    }
+    catch (const std::exception &e)
+    {
+        std::cout << "Error getting last modification time for " << filePath.filename() << ": " << e.what() << '\n';
+    }
+    return "Unknown"; // Generally should not be reached
+}
+
+std::string readFileToString(const std::string &filename)
+{
+    std::ifstream file(filename);
+    if (!file)
+    {
+        throw std::runtime_error("Cannot open file: " + filename);
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
 }
 
 std::string reasonPhraseFromStatusCode(int code)

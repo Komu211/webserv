@@ -8,6 +8,8 @@
 #include <chrono>
 #include <sstream>
 #include <iomanip>
+#include <filesystem>
+#include <iostream>
 
 /* Trim the start and end of a string using a given charset (default whitespaces) */
 void trim(std::string &str, const std::string &charset = " \t\n\r\f\v");
@@ -38,6 +40,12 @@ bool isStandardAddress(const std::string& address);
 
 // Get current system date and time in HTTP format
 std::string getCurrentGMTString();
+
+// Return the last modified time of a file in HTTP format
+std::string getLastModTimeHTTP(const std::filesystem::path& filePath);
+
+// Read the entire file content into a string
+std::string readFileToString(const std::string &filename);
 
 // Returns the standard HTTP reason phrase (as string) for an HTTP status code
 std::string reasonPhraseFromStatusCode(int code);
