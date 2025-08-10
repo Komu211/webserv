@@ -79,22 +79,151 @@ std::string HTTPRequest::getMinimalErrorDefaultBody(int errorCode) const
     }
 }
 
-std::string HTTPRequest::getDirectoryListingBody(const std::filesystem::path& dirPath) const
+// Helper function for getDirectoryListingBody
+std::vector<HTTPRequest::FileInfo> listDirectory(const std::filesystem::path &dir_path)
 {
-    if (!std::filesystem::exists(dirPath))
+    std::vector<HTTPRequest::FileInfo> files;
+
+    try
+    {
+        // Check if directory exists
+        if (!std::filesystem::exists(dir_path) || !std::filesystem::is_directory(dir_path))
+        {
+            std::cerr << "Directory does not exist or is not a directory: " << dir_path << std::endl;
+            return files;
+        }
+
+        // Iterate through directory entries
+        for (const auto &entry : std::filesystem::directory_iterator(dir_path))
+        {
+            HTTPRequest::FileInfo info;
+            info.name = entry.path().filename().string();
+            info.is_directory = entry.is_directory();
+
+            // Get file size (0 for directories)
+            if (info.is_directory)
+            {
+                info.size = 0;
+            }
+            else
+            {
+                try
+                {
+                    info.size = entry.file_size();
+                }
+                catch (const std::filesystem::filesystem_error &)
+                {
+                    info.size = 0; // If can't get size
+                }
+            }
+
+            // Get last modification time
+            try
+            {
+                auto ftime = entry.last_write_time();
+                // Convert to system_clock time_point
+                auto sctp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(ftime - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
+                info.modified_time = std::chrono::system_clock::to_time_t(sctp);
+            }
+            catch (const std::filesystem::filesystem_error &)
+            {
+                info.modified_time = 0; // If can't get time
+            }
+
+            files.push_back(info);
+        }
+
+        // Sort files: directories first, then by name
+        std::sort(files.begin(), files.end(),
+                  [](const HTTPRequest::FileInfo &a, const HTTPRequest::FileInfo &b)
+                  {
+                      if (a.is_directory != b.is_directory)
+                      {
+                          return a.is_directory; // directories first
+                      }
+                      return a.name < b.name; // then alphabetically
+                  });
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Filesystem error: " << e.what() << std::endl;
+    }
+
+    return files;
+}
+
+std::string HTTPRequest::getDirectoryListingBody(const std::filesystem::path &dirPath) const
+{
+    auto filesVec = listDirectory(dirPath);
+
+    if (filesVec.empty())
         return getErrorResponseBody(404); // Should never happen but just to be safe
 
-    std::string html_body {"<!DOCTYPE html>\n<html>\n<head>\n"};
-    html_body += "<title>Index of " + dirPath.string() + "</title>\n";
+    std::string html = "<!DOCTYPE html>\n<html>\n<head>\n";
+    html += "<title>Index of " + _data.uri + "</title>\n";
+    html += "<style>\n";
+    html += "body { font-family: Arial, sans-serif; margin: 20px; }\n";
+    html += "table { border-collapse: collapse; width: 100%; }\n";
+    html += "th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }\n";
+    html += "th { background-color: #f2f2f2; }\n";
+    html += "a { text-decoration: none; color: #0066cc; }\n";
+    html += "a:hover { text-decoration: underline; }\n";
+    html += ".dir { font-weight: bold; }\n";
+    html += "</style>\n</head>\n<body>\n";
 
-    // TODO: Incomplete function
+    html += "<h1>Index of " + _data.uri + "</h1>\n";
+    html += "<table>\n<tr><th>Name</th><th>Size</th><th>Last Modified</th></tr>\n";
 
-    return html_body;
+    // Add parent directory link if not root
+    if (_data.uri != "/")
+    {
+        html += "<tr><td><a href=\"../\" class=\"dir\">../</a></td><td>-</td><td>-</td></tr>\n";
+    }
+
+    for (const auto &file : filesVec)
+    {
+        html += "<tr><td>";
+        auto fileUri{std::filesystem::path(getURInoLeadingSlash()) / file.name};
+        if (file.is_directory)
+        {
+            html += "<a href=\"" + fileUri.string() + "/\" class=\"dir\">" + file.name + "/</a>";
+        }
+        else
+        {
+            html += "<a href=\"" + fileUri.string() + "\">" + file.name + "</a>";
+        }
+        html += "</td><td>";
+
+        if (file.is_directory)
+        {
+            html += "-";
+        }
+        else
+        {
+            html += std::to_string(file.size);
+        }
+
+        html += "</td><td>";
+        if (file.modified_time != 0)
+        {
+            char time_str[100];
+            std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", std::localtime(&file.modified_time));
+            html += time_str;
+        }
+        else
+        {
+            html += "Unknown";
+        }
+        html += "</td></tr>\n";
+    }
+
+    html += "</table>\n</body>\n</html>";
+    return html;
 }
 
 std::string HTTPRequest::handleRedirection(const std::pair<int, std::string> &redirectInfo) const
 {
-    std::string codeWithReasonPhrase {std::to_string(redirectInfo.first) + " " + reasonPhraseFromStatusCode(redirectInfo.first)};
+    std::string codeWithReasonPhrase{std::to_string(redirectInfo.first) + " " + reasonPhraseFromStatusCode(redirectInfo.first)};
     std::string responseBody{"<html><head><title>"};
     responseBody += codeWithReasonPhrase;
     responseBody += "</title></head><body><h1>";
@@ -111,7 +240,7 @@ std::string HTTPRequest::handleRedirection(const std::pair<int, std::string> &re
     return response.write();
 }
 
-std::string HTTPRequest::getMIMEtype(const std::string& extension) const
+std::string HTTPRequest::getMIMEtype(const std::string &extension) const
 {
     if (extension == ".html")
         return "text/html";

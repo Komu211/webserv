@@ -208,7 +208,7 @@ std::string getCurrentGMTString()
     return oss.str();
 }
 
-std::string getLastModTimeHTTP(const std::filesystem::path& filePath)
+std::string getLastModTimeHTTP(const std::filesystem::path &filePath)
 {
     try
     {
@@ -222,7 +222,7 @@ std::string getLastModTimeHTTP(const std::filesystem::path& filePath)
 
             // Convert to time_t for use with gmtime
             std::time_t time_t = std::chrono::system_clock::to_time_t(sctp);
-            
+
             // Convert to GMT/UTC tm struct
             std::tm *gmt_tm = std::gmtime(&time_t);
 
