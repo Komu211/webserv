@@ -253,6 +253,17 @@ std::string readFileToString(const std::string &filename)
     return buffer.str();
 }
 
+std::string bytesToHumanReadable(std::size_t size)
+{
+    int o{};
+    std::ostringstream oss{};
+    double mantissa = size;
+    for (; mantissa >= 1024.; mantissa /= 1024., ++o);
+    oss << std::ceil(mantissa * 10.) / 10. << "BKMGTPE"[o];
+    // o ? oss << "B (" << size << ')' : oss;
+    return oss.str();
+}
+
 std::string reasonPhraseFromStatusCode(int code)
 {
     switch (code)

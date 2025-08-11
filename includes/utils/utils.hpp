@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <filesystem>
 #include <iostream>
+#include <cmath>
 
 /* Trim the start and end of a string using a given charset (default whitespaces) */
 void trim(std::string &str, const std::string &charset = " \t\n\r\f\v");
@@ -46,6 +47,9 @@ std::string getLastModTimeHTTP(const std::filesystem::path& filePath);
 
 // Read the entire file content into a string
 std::string readFileToString(const std::string &filename);
+
+// Returns a human-readable string form of a site_t bytes value
+std::string bytesToHumanReadable(std::size_t size);
 
 // Returns the standard HTTP reason phrase (as string) for an HTTP status code
 std::string reasonPhraseFromStatusCode(int code);

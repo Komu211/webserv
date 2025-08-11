@@ -6,6 +6,6 @@ ErrorRequest::ErrorRequest(HTTPRequestData data, int errorCode, const LocationCo
 
 std::string ErrorRequest::handle()
 {
-    ResponseWriter response(_errorCode, {{"Content-Type", "text/html"}}, getErrorResponseBody(400));
+    ResponseWriter response(_errorCode, {{"Content-Type", "text/html"}}, getErrorResponseBody(_errorCode));
     return response.write();
 }
