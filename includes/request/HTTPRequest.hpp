@@ -29,6 +29,8 @@ protected: // helper functions to use within public member functions of inherite
     std::string getMIMEtype(const std::string &extension) const;
     // Redirection
     std::string handleRedirection(const std::pair<int, std::string> &redirectInfo) const;
+    // Returning error response based on the provided code
+    std::string errorResponse(int errorCode) const;
 
 public:
     // Struct for use in directory listing

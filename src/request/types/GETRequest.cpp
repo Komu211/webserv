@@ -12,8 +12,7 @@ std::string GETRequest::handle()
         _effective_config->getLimitExcept().find("get") == _effective_config->getLimitExcept().end())
     {
         // Method not allowed
-        ResponseWriter response(405, {{"Content-Type", "text/html"}}, getErrorResponseBody(405));
-        return response.write();
+        return errorResponse(405);
     }
 
     // Check if URI is marked for redirection
@@ -32,24 +31,11 @@ std::string GETRequest::handle()
         {
             for (const auto &file : _effective_config->getIndexFilesVec())
             {
+                // Join paths: requested URI dir + index file name
                 std::filesystem::path curFilePath{resourcePath / file};
-                try
-                {
-                    // Will throw for non-existent file or other reading error
-                    // Can also check permissions to return 403 Forbidden, but not necessary
-                    std::string fileContents{readFileToString(curFilePath.string())};
-
-                    std::unordered_map<std::string, std::string> headers;
-                    headers["Content-Type"] = getMIMEtype(curFilePath.extension().string());
-                    headers["Last-Modified"] = getLastModTimeHTTP(curFilePath);
-
-                    ResponseWriter response(200, headers, fileContents);
-                    return response.write();
-                }
-                catch (const std::exception &)
-                {
-                    std::cerr << "Index file " << file << " either does not exist or could not be opened." << '\n';
-                }
+                // Commit to serving this file if it exists, even if permission denied
+                if (std::filesystem::exists(curFilePath))
+                    return serveFile(curFilePath);
             }
             if (_effective_config->getAutoIndex())
             {
@@ -60,26 +46,35 @@ std::string GETRequest::handle()
         else
         {
             // requested resource is a file
-            try
-            {
-                // Will throw for non-existent file or other reading error
-                std::string fileContents{readFileToString(resourcePath.string())};
-
-                std::unordered_map<std::string, std::string> headers;
-                headers["Content-Type"] = getMIMEtype(resourcePath.extension().string());
-                headers["Last-Modified"] = getLastModTimeHTTP(resourcePath);
-
-                ResponseWriter response(200, headers, fileContents);
-                return response.write();
-            }
-            catch (const std::exception &)
-            {
-                std::cerr << "File " << _data.uri << " either does not exist or could not be opened." << '\n';
-            }
+            return serveFile(resourcePath);
         }
     }
 
     // requested resource (file or directory) doesn't exist
-    ResponseWriter response(404, {{"Content-Type", "text/html"}}, getErrorResponseBody(404));
-    return response.write();
+    return errorResponse(404);
+}
+
+std::string GETRequest::serveFile(const std::filesystem::path &filePath) const
+{
+    try
+    {
+        // TODO: if file ends in CGI extension, handle_cgi
+
+        // Will throw on any read error
+        std::string fileContents{readFileToString(filePath.string())};
+
+        std::unordered_map<std::string, std::string> headers;
+        headers["Content-Type"] = getMIMEtype(filePath.extension().string());
+        headers["Last-Modified"] = getLastModTimeHTTP(filePath);
+
+        ResponseWriter response(200, headers, fileContents);
+        return response.write();
+    }
+    catch (const std::exception &)
+    {
+        std::cerr << "File " << _data.uri << " could not be opened." << '\n';
+    }
+    // Error reading from file
+    // RFC says 403 Forbidden can be replaced by 404 Not Found, if desired
+    return errorResponse(403);
 }

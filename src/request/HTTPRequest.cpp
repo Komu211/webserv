@@ -275,3 +275,9 @@ std::string HTTPRequest::getMIMEtype(const std::string &extension) const
     // ... more mappings can be added
     return "application/octet-stream"; // for unknown extensions
 }
+
+std::string HTTPRequest::errorResponse(int errorCode) const
+{
+    ResponseWriter response(errorCode, {{"Content-Type", "text/html"}}, getErrorResponseBody(errorCode));
+    return response.write();
+}

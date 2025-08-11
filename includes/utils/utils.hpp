@@ -45,7 +45,7 @@ std::string getCurrentGMTString();
 // Return the last modified time of a file in HTTP format
 std::string getLastModTimeHTTP(const std::filesystem::path& filePath);
 
-// Read the entire file content into a string
+// Read the entire file content into a string. Throw on error
 std::string readFileToString(const std::string &filename);
 
 // Returns a human-readable string form of a site_t bytes value
