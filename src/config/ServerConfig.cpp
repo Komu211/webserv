@@ -394,7 +394,9 @@ void ServerConfig::setCGIHandler(std::string directive)
         throw std::runtime_error("Config file syntax error: 'cgi_handler' directive is duplicate: " + directive);
 
     if (access(interpreter.c_str(), X_OK) != 0)
-        throw std::runtime_error("Config file error: 'cgi_handler' interpreter either does not exist or is not executable: " + directive);
+        throw std::runtime_error("Config file error: 'cgi_handler' interpreter either does not exist "
+                                 "or is not executable: " +
+                                 directive);
 
     _cgi_handlers_map[extension] = interpreter;
     _seen_cgi_handler = true;

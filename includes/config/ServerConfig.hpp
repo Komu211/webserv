@@ -9,9 +9,9 @@
 #include <netdb.h> /* getaddrinfo(), freeaddrinfo() */
 #include <stdexcept>
 #include <string>
-#include <utility> /* std::pair */
-#include <vector>
 #include <unistd.h> /* access() */
+#include <utility>  /* std::pair */
+#include <vector>
 // #include <unordered_set> /* Better use unordered_set for _listen_host_port and _serverNames */
 
 // A pair of strings (used for host:port combinations)
@@ -46,7 +46,7 @@ public:
     [[nodiscard]] bool                                                          getAutoIndex() const;
     [[nodiscard]] const std::map<int, std::string>                             &getErrorPagesMap() const;
     [[nodiscard]] const std::map<std::string, std::unique_ptr<LocationConfig>> &getLocationsMap() const;
-    [[nodiscard]] const std::map<std::string, std::string> &getCGIHandlersMap() const;
+    [[nodiscard]] const std::map<std::string, std::string>                     &getCGIHandlersMap() const;
 
 private:
     // All `host:port` combinations this server listens to // * Better convert to unordered_set or unordered_map

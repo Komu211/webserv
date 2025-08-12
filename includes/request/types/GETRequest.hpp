@@ -14,5 +14,5 @@ public:
     std::string handle() override;
 
 private:
-    std::string serveFile(const std::filesystem::path &filePath) const;
+    [[nodiscard]] std::string serveFile(const std::filesystem::path &filePath) const;
 };

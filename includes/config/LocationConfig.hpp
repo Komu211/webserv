@@ -25,14 +25,14 @@ public:
 
 public:
     // Getters
-    [[nodiscard]] const std::string                 &getRoot() const;
-    [[nodiscard]] const std::vector<std::string>    &getIndexFilesVec() const;
-    [[nodiscard]] std::size_t                        getClientMaxBodySize() const;
-    [[nodiscard]] bool                               getAutoIndex() const;
-    [[nodiscard]] const std::map<int, std::string>  &getErrorPagesMap() const;
-    [[nodiscard]] const std::set<std::string>       &getLimitExcept() const;
-    [[nodiscard]] const std::string                 &getUploadStore() const;
-    [[nodiscard]] const std::pair<int, std::string> &getReturn() const;
+    [[nodiscard]] const std::string                        &getRoot() const;
+    [[nodiscard]] const std::vector<std::string>           &getIndexFilesVec() const;
+    [[nodiscard]] std::size_t                               getClientMaxBodySize() const;
+    [[nodiscard]] bool                                      getAutoIndex() const;
+    [[nodiscard]] const std::map<int, std::string>         &getErrorPagesMap() const;
+    [[nodiscard]] const std::set<std::string>              &getLimitExcept() const;
+    [[nodiscard]] const std::string                        &getUploadStore() const;
+    [[nodiscard]] const std::pair<int, std::string>        &getReturn() const;
     [[nodiscard]] const std::map<std::string, std::string> &getCGIHandlersMap() const;
 
 private:

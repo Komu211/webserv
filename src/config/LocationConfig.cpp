@@ -7,7 +7,7 @@ LocationConfig::LocationConfig(const std::string &location_block_str, const Serv
     , _client_max_body_size{server_config.getClientMaxBodySize()}
     , _autoindex{server_config.getAutoIndex()}
     , _error_pages_map{server_config.getErrorPagesMap()}
-// ! add CGI handler
+    , _cgi_handlers_map{server_config.getCGIHandlersMap()}
 {
     parseLocationConfig(location_block_str);
 }
@@ -38,8 +38,6 @@ const std::map<int, std::string> &LocationConfig::getErrorPagesMap() const
 {
     return _error_pages_map;
 }
-
-// TODO CGI getter
 
 const std::set<std::string> &LocationConfig::getLimitExcept() const
 {
@@ -319,7 +317,9 @@ void LocationConfig::setCGIHandler(std::string directive)
         throw std::runtime_error("Config file syntax error: 'cgi_handler' directive is duplicate: " + directive);
 
     if (access(interpreter.c_str(), X_OK) != 0)
-        throw std::runtime_error("Config file error: 'cgi_handler' interpreter either does not exist or is not executable: " + directive);
+        throw std::runtime_error("Config file error: 'cgi_handler' interpreter either does not exist or is not "
+                                 "executable: " +
+                                 directive);
 
     _cgi_handlers_map[extension] = interpreter;
     _seen_cgi_handler = true;

@@ -28,9 +28,11 @@ protected: // helper functions to use within public member functions of inherite
     // Determine "Content-Type" header based on a given file extension
     std::string getMIMEtype(const std::string &extension) const;
     // Redirection
-    std::string handleRedirection(const std::pair<int, std::string> &redirectInfo) const;
+    [[nodiscard]] std::string handleRedirection(const std::pair<int, std::string> &redirectInfo) const;
     // Returning error response based on the provided code
-    std::string errorResponse(int errorCode) const;
+    [[nodiscard]] std::string errorResponse(int errorCode) const;
+    // Handle CGI and return the full response to be sent to client
+    [[nodiscard]] std::string serveCGI(const std::filesystem::path &filePath) const;
 
 public:
     // Struct for use in directory listing
