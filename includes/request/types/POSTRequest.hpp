@@ -1,6 +1,10 @@
 #pragma once
 
 #include "HTTPRequest.hpp"
+#include <algorithm>
+#include <fstream>
+#include <sstream>
+#include <chrono>
 
 class POSTRequest final : public HTTPRequest
 {

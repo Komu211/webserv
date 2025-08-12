@@ -69,7 +69,7 @@ private: // Data members for parser only
     bool _seen_client_max_body_size{false};
     bool _seen_autoindex{false};
     bool _seen_index{false};
-    bool _seen_error_page{false};
+    // bool _seen_error_page{false}; unused for now
     bool _seen_limit_except{false};
     bool _seen_upload_store{false};
     bool _seen_return{false};
