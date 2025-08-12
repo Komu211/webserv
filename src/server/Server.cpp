@@ -179,13 +179,12 @@ void Server::readFromClients()
 std::string Server::readFromClient(int clientFd)
 {
     char          buffer[BUFFER_SIZE];
-    const ssize_t bytesRead = read(clientFd, buffer, BUFFER_SIZE - 1);
+    const ssize_t bytesRead = read(clientFd, buffer, BUFFER_SIZE);
     std::string   partialRequest = _clientData[clientFd].partialRequest;
 
     if (bytesRead > 0)
     {
-        buffer[bytesRead] = '\0';
-        partialRequest += buffer;
+        partialRequest.append(buffer, static_cast<size_t>(bytesRead));
         return partialRequest;
     }
     else if (bytesRead == 0)
