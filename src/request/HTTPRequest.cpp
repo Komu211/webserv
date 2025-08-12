@@ -69,7 +69,8 @@ std::string HTTPRequest::getMinimalErrorDefaultBody(int errorCode) const
                "<body><h1>413 Payload Too Large</h1><p>The request entity is too large.</p></body></html>";
     case 415:
         return "<html><head><title>415 Unsupported Media Type</title></head>"
-               "<body><h1>415 Unsupported Media Type</h1><p>The server does not support the requested media type.</p></body></html>";
+               "<body><h1>415 Unsupported Media Type</h1><p>The server does not support the requested media "
+               "type.</p></body></html>";
     case 501:
         return "<html><head><title>501 Not Implemented</title></head>"
                "<body><h1>501 Not Implemented</h1><p>The server does not support the facility "
@@ -280,4 +281,69 @@ std::string HTTPRequest::errorResponse(int errorCode) const
 {
     ResponseWriter response(errorCode, {{"Content-Type", "text/html"}}, getErrorResponseBody(errorCode));
     return response.write();
+}
+
+std::unordered_map<std::string, std::string> HTTPRequest::createCGIenvironment(const std::filesystem::path &filePathAbs) const
+{
+    std::unordered_map<std::string, std::string> envMap;
+
+    envMap["GATEWAY_INTERFACE"] = "CGI/1.1";
+    envMap["SERVER_PROTOCOL"] = _data.version;
+    envMap["REQUEST_METHOD"] = _data.methodStr();
+    envMap["REQUEST_URI"] = _data.uri;
+    envMap["SCRIPT_FILENAME"] = filePathAbs.string();
+
+    std::string virtualScriptPath{_data.uri};
+    std::string queryStr{""};
+    std::size_t queryBegin{virtualScriptPath.find_last_of('?')}; // technically this is 1 before query begin
+    if (queryBegin != std::string::npos)
+    {
+        if (queryBegin + 1 < virtualScriptPath.length())
+            queryStr = virtualScriptPath.substr(queryBegin + 1); // get part after '?'
+        virtualScriptPath.erase(queryBegin);                     // erase from '?' to end of string
+    }
+    envMap["SCRIPT_NAME"] = virtualScriptPath;
+    envMap["QUERY_STRING"] = queryStr;
+
+    if (_data.headers.find("content-type") != _data.headers.end())
+        envMap["CONTENT_TYPE"] = _data.headers.at("content-type");
+    else
+        envMap["CONTENT_TYPE"] = "";
+
+    envMap["CONTENT_LENGTH"] = _data.body.length();
+
+    if (_data.headers.find("host") != _data.headers.end())
+        envMap["SERVER_NAME"] = _data.headers.at("host");
+    else
+        envMap["SERVER_NAME"] = "";
+
+    // ! SERVER_PORT (port the server received the request on) and REMOTE_ADDR (IP address of client) are
+    // ! not added to the environment since they are not available in HTTPRequestData _data
+
+    return envMap;
+}
+
+std::string HTTPRequest::serveCGI(const std::filesystem::path &filePath, const std::string &interpreter) const
+{
+    if (!std::filesystem::exists(filePath))
+        return errorResponse(404);
+
+    auto filePathAbs{std::filesystem::absolute(filePath)};
+    try
+    {
+        CGISubprocess subprocess;
+        subprocess.setEnvironment(createCGIenvironment(filePathAbs));
+        subprocess.createSubprocess(filePathAbs, interpreter);
+        subprocess.writeToChild(_data.body);                // ! blocking
+        std::string cgi_output{subprocess.readFromChild()}; // ! blocking
+        subprocess.waitChild();                             // uses WNOHANG
+
+        // TODO: before returning, parse CGI-returned response and add any missing headers and status OK, etc.
+        return cgi_output;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
+        return errorResponse(500);
+    }
 }

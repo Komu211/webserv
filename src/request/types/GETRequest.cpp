@@ -58,8 +58,8 @@ std::string GETRequest::serveFile(const std::filesystem::path &filePath) const
 {
     for (const auto& [extension, interpreter] : _effective_config->getCGIHandlersMap())
     {
-        if (strEndsWith(filePath.string(), extension))
-            return serveCGI(filePath);
+        if (filePath.extension().string() == extension)
+            return serveCGI(filePath, interpreter);
     }
     try
     {
