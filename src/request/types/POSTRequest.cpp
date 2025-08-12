@@ -30,10 +30,9 @@ std::string POSTRequest::handle()
     std::error_code ec;
     if (!std::filesystem::exists(uploadDir))
     {
-        if (std::filesystem::create_directories(uploadDir, ec))
-        {
+        std::filesystem::create_directories(uploadDir, ec);
+        if (ec)
             return errorResponse(500);
-        }
     }
 
     // Determine filename (use last path segment)
