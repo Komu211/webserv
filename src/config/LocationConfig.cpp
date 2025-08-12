@@ -56,6 +56,11 @@ const std::pair<int, std::string> &LocationConfig::getReturn() const
     return _return;
 }
 
+const std::map<std::string, std::string> &LocationConfig::getCGIHandlersMap() const
+{
+    return _cgi_handlers_map;
+}
+
 /* Parsing logic */
 
 void LocationConfig::parseLocationConfig(std::string location_block_str)
@@ -119,11 +124,11 @@ void LocationConfig::setConfigurationValue(std::string directive)
 {
     trim(directive);
 
-    // TODO std::string cgi_handler{"cgi_handler"};
     std::string root{"root"};
     std::string client_max_body_size{"client_max_body_size"};
     std::string autoindex{"autoindex"};
     std::string error_page{"error_page"};
+    std::string cgi_handler{"cgi_handler"};
     std::string index{"index"};
     std::string limit_except{"limit_except"};
     std::string upload_store{"upload_store"};
@@ -144,6 +149,9 @@ void LocationConfig::setConfigurationValue(std::string directive)
     // Set error pages
     else if (firstWordEquals(directive, error_page, &nextWordPos))
         setErrorPage(directive.substr(nextWordPos));
+    // Set CGI handler
+    else if (firstWordEquals(directive, cgi_handler, &nextWordPos))
+        setCGIHandler(directive.substr(nextWordPos));
     // Set index files
     else if (firstWordEquals(directive, index, &nextWordPos))
         setIndex(directive.substr(nextWordPos));
@@ -287,6 +295,34 @@ void LocationConfig::setErrorPage(std::string directive)
             throw std::runtime_error("Config file syntax error: Invalid 'error_page' directive value: " + directive + ": Value must be between 300 and 599: " + elem);
         _error_pages_map[errorNum] = errorPageURI;
     }
+}
+
+void LocationConfig::setCGIHandler(std::string directive)
+{
+    trim(directive, ";");
+
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
+
+    if (args.size() != 2)
+        throw std::runtime_error("Config file syntax error: 'cgi_handler' directive invalid number of arguments: " + directive);
+
+    std::string extension{args[0]};
+    std::string interpreter{args[1]};
+
+    if (extension.empty() || interpreter.empty())
+        throw std::runtime_error("Config file syntax error: Invalid 'cgi_handler' directive argument(s): " + directive);
+
+    if (extension[0] != '.')
+        extension.insert(0, 1, '.');
+
+    if (_seen_cgi_handler && _cgi_handlers_map.find(extension) != _cgi_handlers_map.end())
+        throw std::runtime_error("Config file syntax error: 'cgi_handler' directive is duplicate: " + directive);
+
+    if (access(interpreter.c_str(), X_OK) != 0)
+        throw std::runtime_error("Config file error: 'cgi_handler' interpreter either does not exist or is not executable: " + directive);
+
+    _cgi_handlers_map[extension] = interpreter;
+    _seen_cgi_handler = true;
 }
 
 void LocationConfig::setIndex(std::string directive)

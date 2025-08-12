@@ -70,6 +70,11 @@ const std::map<std::string, std::unique_ptr<LocationConfig>> &ServerConfig::getL
     return _locations_map;
 }
 
+const std::map<std::string, std::string> &ServerConfig::getCGIHandlersMap() const
+{
+    return _cgi_handlers_map;
+}
+
 /* Parsing logic */
 
 void ServerConfig::parseServerConfig(std::string server_block_str)
@@ -134,7 +139,7 @@ void ServerConfig::setConfigurationValue(std::string directive)
     std::string listen{"listen"};
     std::string server_name{"server_name"};
     std::string location{"location"};
-    // TODO std::string cgi_handler{"cgi_handler"};
+    std::string cgi_handler{"cgi_handler"};
     std::string root{"root"};
     std::string client_max_body_size{"client_max_body_size"};
     std::string autoindex{"autoindex"};
@@ -143,7 +148,6 @@ void ServerConfig::setConfigurationValue(std::string directive)
 
     std::size_t nextWordPos;
 
-    // TODO: CGI handler
     // Set listening host:port(s) for this server
     if (firstWordEquals(directive, listen, &nextWordPos))
         setListen(directive.substr(nextWordPos));
@@ -153,6 +157,9 @@ void ServerConfig::setConfigurationValue(std::string directive)
     // Set location config (just save strings for now)
     else if (firstWordEquals(directive, location, &nextWordPos))
         _locationConfigsStr.push_back(directive.substr(nextWordPos));
+    // Set CGI handler
+    else if (firstWordEquals(directive, cgi_handler, &nextWordPos))
+        setCGIHandler(directive.substr(nextWordPos));
     // Set root
     else if (firstWordEquals(directive, root, &nextWordPos))
         setRoot(directive.substr(nextWordPos));
@@ -363,6 +370,34 @@ void ServerConfig::setServerName(std::string directive)
     {
         _serverNames.push_back(elem);
     }
+}
+
+void ServerConfig::setCGIHandler(std::string directive)
+{
+    trim(directive, ";");
+
+    std::vector<std::string> args{splitStrExceptQuotes(directive)};
+
+    if (args.size() != 2)
+        throw std::runtime_error("Config file syntax error: 'cgi_handler' directive invalid number of arguments: " + directive);
+
+    std::string extension{args[0]};
+    std::string interpreter{args[1]};
+
+    if (extension.empty() || interpreter.empty())
+        throw std::runtime_error("Config file syntax error: Invalid 'cgi_handler' directive argument(s): " + directive);
+
+    if (extension[0] != '.')
+        extension.insert(0, 1, '.');
+
+    if (_seen_cgi_handler && _cgi_handlers_map.find(extension) != _cgi_handlers_map.end())
+        throw std::runtime_error("Config file syntax error: 'cgi_handler' directive is duplicate: " + directive);
+
+    if (access(interpreter.c_str(), X_OK) != 0)
+        throw std::runtime_error("Config file error: 'cgi_handler' interpreter either does not exist or is not executable: " + directive);
+
+    _cgi_handlers_map[extension] = interpreter;
+    _seen_cgi_handler = true;
 }
 
 void ServerConfig::setRoot(std::string directive)

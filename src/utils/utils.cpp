@@ -172,6 +172,13 @@ bool firstWordEquals(const std::string &str, const std::string &comparison, std:
     return false;
 }
 
+bool strEndsWith(const std::string& str, const std::string& suffix)
+{
+    if (str.length() < suffix.length())
+        return false;
+    return str.substr(str.length() - suffix.length()) == suffix;
+}
+
 bool isHttpMethod(const std::string &str)
 {
     static const std::set<std::string> http_methods = {"get",     "post",  "delete", "put",    "head",

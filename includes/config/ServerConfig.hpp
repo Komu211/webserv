@@ -11,6 +11,7 @@
 #include <string>
 #include <utility> /* std::pair */
 #include <vector>
+#include <unistd.h> /* access() */
 // #include <unordered_set> /* Better use unordered_set for _listen_host_port and _serverNames */
 
 // A pair of strings (used for host:port combinations)
@@ -45,7 +46,7 @@ public:
     [[nodiscard]] bool                                                          getAutoIndex() const;
     [[nodiscard]] const std::map<int, std::string>                             &getErrorPagesMap() const;
     [[nodiscard]] const std::map<std::string, std::unique_ptr<LocationConfig>> &getLocationsMap() const;
-    // TODO cgi getter
+    [[nodiscard]] const std::map<std::string, std::string> &getCGIHandlersMap() const;
 
 private:
     // All `host:port` combinations this server listens to // * Better convert to unordered_set or unordered_map
@@ -72,17 +73,11 @@ private:
     // URI that will be shown for the specified error codes (must be between 300 and 599)
     std::map<int, std::string> _error_pages_map{};
 
-    // // remove (not needed)
-    // std::string _host;
-
-    // // remove (not needed)
-    // int _port;
-
     // Sets configuration depending on a request URI
     std::map<std::string, std::unique_ptr<LocationConfig>> _locations_map;
 
-    // TODO: CGI handler, maps extensions (e.g., `.py` or `.php`) to their interpreters
-    // (`/usr/bin/python3`) std::map<std::string, std::string> _cgi_handler;
+    // CGI handler, maps extensions (e.g., `.py` or `.php`) to their interpreters (e.g., `/usr/bin/python3`)
+    std::map<std::string, std::string> _cgi_handlers_map{};
 
 private: // Data members for parser only
     // Represents whether a value has already been seen in the config file
@@ -92,6 +87,7 @@ private: // Data members for parser only
     bool _seen_autoindex{false};
     bool _seen_index{false};
     bool _seen_error_page{false};
+    bool _seen_cgi_handler{false};
 
     // `LocationConfig`s in string form only for use in parser
     std::vector<std::string> _locationConfigsStr{};
@@ -115,5 +111,5 @@ private: // Member functions for parser only
     void setAutoIndex(std::string directive);
     void setErrorPage(std::string directive);
     void setIndex(std::string directive);
-    // TODO: CGI handler
+    void setCGIHandler(std::string directive);
 };
