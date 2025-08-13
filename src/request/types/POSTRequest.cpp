@@ -4,7 +4,7 @@ POSTRequest::POSTRequest(HTTPRequestData data, const LocationConfig* location_co
     HTTPRequest(data, location_config)
 {}
 
-std::string POSTRequest::handle()
+std::string POSTRequest::getFullResponse()
 {
     // Check POST method allowed
     if (!_effective_config->getLimitExcept().empty() &&

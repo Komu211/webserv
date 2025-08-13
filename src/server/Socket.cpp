@@ -167,6 +167,10 @@ void Socket::initSocket()
 
 std::ostream &operator<<(std::ostream &os, const Socket &socket)
 {
-    os << "Socket(host: " << socket.get_host() << ", port: " << socket.get_port() << ", fd: " << socket.get_fd() << ")";
+    std::string url{socket.get_host() + ":" + socket.get_port()};
+    if (url.substr(0, 7) != "http://")
+        url.insert(0, "http://");
+
+    os << "Socket( host: " << socket.get_host() << ", port: " << socket.get_port() << ", fd: " << socket.get_fd() << ", url: " << url << " )";
     return os;
 }

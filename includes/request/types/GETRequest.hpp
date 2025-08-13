@@ -11,7 +11,7 @@ public:
     GETRequest(GETRequest &&) = default;
     ~GETRequest() override = default;
 
-    std::string handle() override;
+    std::string getFullResponse() override;
 
 private:
     [[nodiscard]] std::string serveFile(const std::filesystem::path &filePath) const;

@@ -5,7 +5,7 @@ GETRequest::GETRequest(HTTPRequestData data, const LocationConfig *location_conf
 {
 }
 
-std::string GETRequest::handle()
+std::string GETRequest::getFullResponse()
 {
     // Check if GET requests for this URI are allowed
     if (!_effective_config->getLimitExcept().empty() &&

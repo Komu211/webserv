@@ -4,12 +4,14 @@
 #include "HTTPRequestData.hpp"
 #include "LocationConfig.hpp"
 #include "ResponseWriter.hpp"
+#include "Server.hpp"
 #include <filesystem>
 #include <iostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+class Server;
 class LocationConfig;
 class ResponseWriter;
 class HTTPRequest
@@ -57,7 +59,9 @@ public:
     virtual ~HTTPRequest() = default;
 
     // Where the magic happens
-    virtual std::string handle() = 0;
+    virtual std::string getFullResponse() = 0;
+    // virtual std::string fullResponseIsReady() = 0;
+    // virtual std::string generateResponse(Server& server) = 0;
 
     [[nodiscard]] bool isCloseConnection() const;
 };

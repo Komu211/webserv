@@ -4,7 +4,7 @@ ErrorRequest::ErrorRequest(HTTPRequestData data, int errorCode, const LocationCo
     HTTPRequest(data, location_config), _errorCode(errorCode)
 {}
 
-std::string ErrorRequest::handle()
+std::string ErrorRequest::getFullResponse()
 {
     ResponseWriter response(_errorCode, {{"Content-Type", "text/html"}}, getErrorResponseBody(_errorCode));
     return response.write();

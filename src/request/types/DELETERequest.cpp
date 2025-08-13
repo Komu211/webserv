@@ -4,7 +4,7 @@ DELETERequest::DELETERequest(HTTPRequestData data, const LocationConfig* locatio
     HTTPRequest(data, location_config)
 {}
 
-std::string DELETERequest::handle()
+std::string DELETERequest::getFullResponse()
 {
     // Check method allowed
     if (!_effective_config->getLimitExcept().empty() &&

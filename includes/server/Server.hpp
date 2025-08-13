@@ -22,20 +22,39 @@
 // Global volatile flag to signal shutdown
 extern volatile std::sig_atomic_t g_shutdownServer;
 
+// Forward declarations in case of double inclusions
 class GlobalConfig;
+class HTTPRequest;
+class HTTPRequestParser;
+class PollManager;
+class ServerConfig;
+class Socket;
 
 struct PendingResponse
 {
     std::string response;
-    size_t sent;
+    size_t      sent;
+};
+
+struct OpenFile
+{
+    enum ReadOrWrite
+    {
+        READ,
+        WRITE
+    };
+    std::string content;
+    bool        finished{false};
+    ReadOrWrite fileType;
 };
 
 struct ClientData
 {
-    std::string partialRequest;
-    std::unique_ptr<HTTPRequest> parsedRequest;
-    PendingResponse pendingResponse;
-    const ServerConfig* serverConfig;
+    std::string                       partialRequest;
+    std::unique_ptr<HTTPRequest>      parsedRequest;
+    PendingResponse                   pendingResponse;
+    const ServerConfig               *serverConfig;
+    std::unordered_map<int, OpenFile> openFiles;
 };
 
 class Server
@@ -43,30 +62,39 @@ class Server
 private:
     GlobalConfig                                     _global_config;
     std::unordered_map<int, std::unique_ptr<Socket>> _sockets;
-    
-    std::unordered_map<int, const ServerConfig*>     _socket_to_server_config;
-    
-    PollManager                                      _pollManager;
-    std::unordered_map<int, ClientData>              _clientData;
-    std::unordered_set<int> _clientsToRemove;
 
+    std::unordered_map<int, const ServerConfig *> _socket_to_server_config;
 
-    void acceptNewConnections();
-    void acceptNewConnection(int serverFd);
-    void readFromClients();
-    std::string readFromClient(int clientFd);
-    void respondToClients();
-    void respondToClient(int clientFd);
-    void closeConnections();
+    PollManager                         _pollManager;
+    std::unordered_map<int, ClientData> _clientData;
+    std::unordered_set<int>             _clientsToRemove;
+    std::unordered_set<int>             _filesToRemove;
+    std::unordered_map<int, int>        _openFilesToClientMap;
+
+    void            acceptNewConnections();
+    void            acceptNewConnection(int serverFd);
+    void            readFromOpenFiles();
+    void            writeToOpenFiles();
+    ClientData     &getClientOfFile(int fileFd);
+    void            readFromClients();
+    std::string     readFromClientOrFile(int fd, std::string partialContent);
+    // std::string readFromClient(int clientFd);
+    // std::string readFromFile(int fileFd);
+    void            writeToFile(int fileFd, ClientData &client_data);
+    void            respondToClients();
+    void            respondToClient(int clientFd);
+    void            closeConnections();
+    void            closeDoneFiles();
+    void            closeClientFiles(int fd);
     PendingResponse writeResponseToClient(int clientFd);
-    
-    const LocationConfig* findLocationConfig(const std::string& uri, const ServerConfig* server_config) const;
+
+    const LocationConfig *findLocationConfig(const std::string &uri, const ServerConfig *server_config) const;
 
 public:
     Server() = delete;
     explicit Server(std::string configFileName);
     Server(const Server &src) = delete; // Cannot copy GlobalConfig and no need to copy
-    Server(Server &&src) = default;
+    Server(Server &&src) = delete;
     Server &operator=(const Server &src) = delete; // Cannot copy GlobalConfig and no need to copy
     Server &operator=(Server &&src) = delete;      // Cannot copy/move GlobalConfig and no need to copy/move
     ~Server() = default;
