@@ -91,6 +91,8 @@ void Server::run()
         // Clean up closed connections
         closeConnections();
     }
+    if (g_shutdownServer == 2)
+        throw std::runtime_error("execve failure"); // only possible to reach in CGI child process
     std::cout << "Server successfully stopped. Goodbye!" << '\n';
 }
 

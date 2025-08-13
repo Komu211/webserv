@@ -25,15 +25,15 @@ public:
 
 public:
     // Getters
-    [[nodiscard]] const std::string                 &getRoot() const;
-    [[nodiscard]] const std::vector<std::string>    &getIndexFilesVec() const;
-    [[nodiscard]] std::size_t                        getClientMaxBodySize() const;
-    [[nodiscard]] bool                               getAutoIndex() const;
-    [[nodiscard]] const std::map<int, std::string>  &getErrorPagesMap() const;
-    // TODO cgi getter
-    [[nodiscard]] const std::set<std::string>       &getLimitExcept() const;
-    [[nodiscard]] const std::string                 &getUploadStore() const;
-    [[nodiscard]] const std::pair<int, std::string> &getReturn() const;
+    [[nodiscard]] const std::string                        &getRoot() const;
+    [[nodiscard]] const std::vector<std::string>           &getIndexFilesVec() const;
+    [[nodiscard]] std::size_t                               getClientMaxBodySize() const;
+    [[nodiscard]] bool                                      getAutoIndex() const;
+    [[nodiscard]] const std::map<int, std::string>         &getErrorPagesMap() const;
+    [[nodiscard]] const std::set<std::string>              &getLimitExcept() const;
+    [[nodiscard]] const std::string                        &getUploadStore() const;
+    [[nodiscard]] const std::pair<int, std::string>        &getReturn() const;
+    [[nodiscard]] const std::map<std::string, std::string> &getCGIHandlersMap() const;
 
 private:
     // Root directory for requests to this location
@@ -51,8 +51,8 @@ private:
     // URI that will be shown for the specified error codes (must be between 300 and 599)
     std::map<int, std::string> _error_pages_map{};
 
-    // TODO: CGI handler, maps extensions (e.g., `.py` or `.php`) to their interpreters
-    // (`/usr/bin/python3`) std::map<std::string, std::string> _cgi_handler;
+    // CGI handler, maps extensions (e.g., `.py` or `.php`) to their interpreters (e.g., `/usr/bin/python3`)
+    std::map<std::string, std::string> _cgi_handlers_map{};
 
     // Limits allowed HTTP methods inside a location
     std::set<std::string> _limit_except{};
@@ -73,6 +73,7 @@ private: // Data members for parser only
     bool _seen_limit_except{false};
     bool _seen_upload_store{false};
     bool _seen_return{false};
+    bool _seen_cgi_handler{false};
 
 private: // Member functions for parser only
     // Main parser
@@ -89,5 +90,5 @@ private: // Member functions for parser only
     void setLimitExcept(std::string directive);
     void setUploadStore(std::string directive);
     void setReturn(std::string directive);
-    // TODO: CGI handler
+    void setCGIHandler(std::string directive);
 };

@@ -20,7 +20,7 @@
 #define BUFFER_SIZE 1024
 
 // Global volatile flag to signal shutdown
-extern volatile sig_atomic_t g_shutdownServer;
+extern volatile std::sig_atomic_t g_shutdownServer;
 
 class GlobalConfig;
 

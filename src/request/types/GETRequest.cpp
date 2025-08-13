@@ -61,10 +61,13 @@ std::string GETRequest::handle()
 
 std::string GETRequest::serveFile(const std::filesystem::path &filePath) const
 {
+    for (const auto& [extension, interpreter] : _effective_config->getCGIHandlersMap())
+    {
+        if (filePath.extension().string() == extension)
+            return serveCGI(filePath, interpreter);
+    }
     try
     {
-        // TODO: if file ends in CGI extension, handle_cgi
-
         // Will throw on any read error
         std::string fileContents{readFileToString(filePath.string())};
 

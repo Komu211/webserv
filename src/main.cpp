@@ -5,7 +5,7 @@
 #include <string>
 
 // Global volatile flag to signal shutdown
-volatile sig_atomic_t g_shutdownServer = 0;
+volatile std::sig_atomic_t g_shutdownServer = 0;
 
 // Signal handler function
 void signal_handler(int signum)
