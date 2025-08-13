@@ -281,3 +281,22 @@ std::string HTTPRequest::errorResponse(int errorCode) const
     ResponseWriter response(errorCode, {{"Content-Type", "text/html"}}, getErrorResponseBody(errorCode));
     return response.write();
 }
+
+bool HTTPRequest::normalizeAndValidateUnderRoot(const std::filesystem::path &candidate, std::filesystem::path &outNormalized) const
+{
+    std::filesystem::path rootPath = std::filesystem::path(_effective_config->getRoot());
+    std::filesystem::path normRoot = rootPath.lexically_normal();
+    std::filesystem::path normCand = candidate.lexically_normal();
+
+    auto rootStr = normRoot.string();
+    auto candStr = normCand.string();
+
+    // Ensure trailing separator handling: either exact match, or next char is '/'
+    bool startsWith = candStr.compare(0, rootStr.size(), rootStr) == 0 &&
+                      (candStr.size() == rootStr.size() || candStr[rootStr.size()] == '/');
+    if (!startsWith)
+        return false;
+
+    outNormalized = normCand;
+    return true;
+}

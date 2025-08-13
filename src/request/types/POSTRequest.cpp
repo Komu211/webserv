@@ -26,11 +26,16 @@ std::string POSTRequest::handle()
     if (uploadDir.is_relative())
         uploadDir = std::filesystem::path(_effective_config->getRoot()) / uploadDir;
 
+    // Prevent escaping root
+    std::filesystem::path safeUploadDir;
+    if (!normalizeAndValidateUnderRoot(uploadDir, safeUploadDir))
+        return errorResponse(403);
+
     // Ensure directory exists
     std::error_code ec;
-    if (!std::filesystem::exists(uploadDir))
+    if (!std::filesystem::exists(safeUploadDir))
     {
-        std::filesystem::create_directories(uploadDir, ec);
+        std::filesystem::create_directories(safeUploadDir, ec);
         if (ec)
             return errorResponse(500);
     }
@@ -47,7 +52,7 @@ std::string POSTRequest::handle()
         filenameCandidate = std::string("upload_") + std::to_string(epoch) + ".bin";
     }
 
-    std::filesystem::path targetPath = uploadDir / filenameCandidate;
+    std::filesystem::path targetPath = safeUploadDir / filenameCandidate;
 
     // If file exists, append number to avoid overwrite
     if (std::filesystem::exists(targetPath))
@@ -56,7 +61,7 @@ std::string POSTRequest::handle()
         std::string ext = targetPath.extension().string();
         for (int i = 1; i < 10000; ++i)
         {
-            std::filesystem::path candidate = uploadDir / (stem + "_" + std::to_string(i) + ext);
+            std::filesystem::path candidate = safeUploadDir / (stem + "_" + std::to_string(i) + ext);
             if (!std::filesystem::exists(candidate))
             {
                 targetPath = candidate;

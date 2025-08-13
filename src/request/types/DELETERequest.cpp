@@ -21,21 +21,26 @@ std::string DELETERequest::handle()
     std::filesystem::path targetPath{_effective_config->getRoot()};
     targetPath /= getURInoLeadingSlash();
 
-    if (!std::filesystem::exists(targetPath))
+    // Prevent escaping root
+    std::filesystem::path safePath;
+    if (!normalizeAndValidateUnderRoot(targetPath, safePath))
+        return errorResponse(403);
+
+    if (!std::filesystem::exists(safePath))
         return errorResponse(404);
 
-    if (std::filesystem::is_directory(targetPath))
+    if (std::filesystem::is_directory(safePath))
         return errorResponse(403);
 
     // Remove the file
     std::error_code ec;
-    bool removed = std::filesystem::remove(targetPath, ec);
+    bool removed = std::filesystem::remove(safePath, ec);
     if (ec)
         return errorResponse(500);
 
     if (!removed)
         return errorResponse(404);
 
-    ResponseWriter response(200, {{"Content-Type", "text/plain"}}, std::string("Deleted \"") + targetPath.filename().string() + "\"\n");
+    ResponseWriter response(200, {{"Content-Type", "text/plain"}}, std::string("Deleted \"") + safePath.filename().string() + "\"\n");
     return response.write();
 }

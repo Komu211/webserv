@@ -24,29 +24,34 @@ std::string GETRequest::handle()
     std::filesystem::path resourcePath{_effective_config->getRoot()};
     resourcePath /= getURInoLeadingSlash(); // resourcePath = root + requested URI
 
-    if (std::filesystem::exists(resourcePath))
+    // Prevent escaping root
+    std::filesystem::path safePath;
+    if (!normalizeAndValidateUnderRoot(resourcePath, safePath))
+        return errorResponse(403);
+
+    if (std::filesystem::exists(safePath))
     {
         // look for index file. if not found, return either directory listing or error
-        if (std::filesystem::is_directory(resourcePath))
+        if (std::filesystem::is_directory(safePath))
         {
             for (const auto &file : _effective_config->getIndexFilesVec())
             {
                 // Join paths: requested URI dir + index file name
-                std::filesystem::path curFilePath{resourcePath / file};
+                std::filesystem::path curFilePath{safePath / file};
                 // Commit to serving this file if it exists, even if permission denied
                 if (std::filesystem::exists(curFilePath))
                     return serveFile(curFilePath);
             }
             if (_effective_config->getAutoIndex())
             {
-                ResponseWriter response(200, {{"Content-Type", "text/html"}}, getDirectoryListingBody(resourcePath));
+                ResponseWriter response(200, {{"Content-Type", "text/html"}}, getDirectoryListingBody(safePath));
                 return response.write();
             }
         }
         else
         {
             // requested resource is a file
-            return serveFile(resourcePath);
+            return serveFile(safePath);
         }
     }
 

@@ -32,6 +32,9 @@ protected: // helper functions to use within public member functions of inherite
     // Returning error response based on the provided code
     std::string errorResponse(int errorCode) const;
 
+    // Normalize path and validate it is under root
+    bool normalizeAndValidateUnderRoot(const std::filesystem::path &candidate, std::filesystem::path &outNormalized) const;
+
 public:
     // Struct for use in directory listing
     struct FileInfo
