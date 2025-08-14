@@ -41,6 +41,23 @@ HTTPRequestData HTTPRequestParser::parse(const std::string &requestStr)
     return HTTPData;
 }
 
+std::size_t HTTPRequestParser::getResponseSizeFromCgiHeader(const std::string& cgiResponseStr)
+{
+    std::size_t size{0};
+    auto bodyStart = cgiResponseStr.find("\r\n\r\n");
+    if (bodyStart != std::string::npos)
+        size += 4;
+    std::istringstream headerStream(cgiResponseStr.substr(0, bodyStart));
+    size += headerStream.str().length();
+    [[maybe_unused]]auto HTTPData = getRequestLine(headerStream);
+    HTTPData.headers = parseHeaders(std::move(headerStream));
+    auto content_length_header {HTTPData.headers.find("content-length")};
+    if (content_length_header == HTTPData.headers.end())
+        return std::string::npos;
+    size += std::stoul(content_length_header->second);
+    return size;
+}
+
 std::string HTTPRequestParser::getBody(const std::unordered_map<std::string, std::string> &headers, const std::string &bodyStr)
 {
     auto transferEncodingIt = headers.find("transfer-encoding");

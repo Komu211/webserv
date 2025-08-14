@@ -11,6 +11,9 @@
 #include <filesystem>
 #include <iostream>
 #include <cmath>
+#include <fcntl.h>
+#include <unistd.h>
+#include <cstring>
 
 /* Trim the start and end of a string using a given charset (default whitespaces) */
 void trim(std::string &str, const std::string &charset = " \t\n\r\f\v");
@@ -56,6 +59,9 @@ void removeLeadingSlash(std::string& str);
 
 // Returns a human-readable string form of a site_t bytes value
 std::string bytesToHumanReadable(std::size_t size);
+
+// Sets a given fd to non-blocking mode. Throws AND CLOSES fd on error.
+void setNonBlocking(int fd);
 
 // Returns the standard HTTP reason phrase (as string) for an HTTP status code
 std::string reasonPhraseFromStatusCode(int code);

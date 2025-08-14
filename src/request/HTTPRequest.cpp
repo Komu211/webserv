@@ -41,7 +41,7 @@ void HTTPRequest::errorResponse(int errorCode)
         errorPagePath /= error_file; // errorPagePath = root + error_file
         // ? or is errorPagePath = root + current location + error_file ?
     
-        openHtmlFileSetHeaders(errorPagePath);
+        openFileSetHeaders(errorPagePath);
     
         return;
     }
@@ -62,11 +62,12 @@ void HTTPRequest::errorResponse(int errorCode)
     _responseState = READY;
 }
 
-void HTTPRequest::openHtmlFileSetHeaders(const std::filesystem::path &filePath)
+void HTTPRequest::openFileSetHeaders(const std::filesystem::path &filePath)
 {
     int fd = open(filePath.c_str(), O_RDONLY);
     if (fd == -1)
         throw std::runtime_error(strerror(errno));
+    setNonBlocking(fd);
     OpenFile open_file;
     open_file.fileType = OpenFile::READ;
     open_file.size = std::filesystem::file_size(filePath);
@@ -363,7 +364,7 @@ std::unordered_map<std::string, std::string> HTTPRequest::createCGIenvironment(c
             queryStr = virtualScriptPath.substr(queryBegin + 1); // get part after '?'
         virtualScriptPath.erase(queryBegin);                     // erase from '?' to end of string
     }
-    envMap["SCRIPT_NAME"] = virtualScriptPath;
+    envMap["SCRIPT_NAME"] = virtualScriptPath; // TODO: this is URI. Can sometimes be directory
     envMap["QUERY_STRING"] = queryStr;
 
     if (_data.headers.find("content-type") != _data.headers.end())
@@ -378,37 +379,77 @@ std::unordered_map<std::string, std::string> HTTPRequest::createCGIenvironment(c
     else
         envMap["SERVER_NAME"] = "";
 
-    // ! SERVER_PORT (port the server received the request on) and REMOTE_ADDR (IP address of client) are
-    // ! not added to the environment since they are not available in HTTPRequestData _data
+    envMap["REMOTE_ADDR"] = _server->getHostFromSocketFd(_clientFd);
+    envMap["SERVER_PORT"] = _server->getPortFromSocketFd(_clientFd);
 
     return envMap;
 }
 
-// TODO
-// std::string HTTPRequest::serveCGI(const std::filesystem::path &filePath, const std::string &interpreter) const
-// {
-//     if (!std::filesystem::exists(filePath))
-//         return errorResponse(404);
+void HTTPRequest::cgiOutputToResponse(const std::string& cgi_output)
+{
+    HTTPRequestData data {HTTPRequestParser::parse(cgi_output)};
+    auto status_header = data.headers.find("status");
+    int status_value{};
+    if (status_header == data.headers.end())
+        status_value = 200;
+    else
+    {
+        std::istringstream iss{status_header->second};
+        iss >> status_value;
+    }
+    data.headers.erase("status");
+    ResponseWriter response(status_value, data.headers, data.body);
+    _fullResponse = response.write();
+    _responseState = READY;
+}
 
-//     auto filePathAbs{std::filesystem::absolute(filePath)};
-//     try
-//     {
-//         CGISubprocess subprocess;
-//         subprocess.setEnvironment(createCGIenvironment(filePathAbs));
-//         subprocess.createSubprocess(filePathAbs, interpreter);
-//         subprocess.writeToChild(_data.body);                // ! blocking
-//         std::string cgi_output{subprocess.readFromChild()}; // ! blocking
-//         subprocess.waitChild();                             // uses WNOHANG
+void HTTPRequest::serveCGI(const std::filesystem::path &filePath, const std::string &interpreter)
+{
+    if (!std::filesystem::exists(filePath))
+        return errorResponse(404);
 
-//         // TODO: before returning, parse CGI-returned response and add any missing headers and status OK, etc.
-//         return cgi_output;
-//     }
-//     catch (const std::exception &e)
-//     {
-//         std::cerr << e.what() << '\n';
-//         return errorResponse(500);
-//     }
-// }
+    auto filePathAbs{std::filesystem::absolute(filePath)};
+    try
+    {
+        _CgiSubprocess = std::make_unique<CGISubprocess>();
+        // CGISubprocess subprocess;
+        _CgiSubprocess->setEnvironment(createCGIenvironment(filePathAbs));
+        _CgiSubprocess->createSubprocess(filePathAbs, interpreter);
+
+        // Register the write to CGI with poll
+        OpenFile open_write_file;
+        open_write_file.fileType = OpenFile::WRITE;
+        open_write_file.isCGI = true;
+        open_write_file.content = _data.body;
+        open_write_file.size = _data.body.size();
+        int writeToCgiFd{_CgiSubprocess->getWritePipeToCGI()};
+        _clientData->openFiles[writeToCgiFd] = open_write_file;
+        _server->getOpenFilesToClientMap()[writeToCgiFd] = _clientFd;
+        _server->getPollManager().addWriteFileFd(writeToCgiFd);
+
+        // Register the read from CGI with poll
+        OpenFile open_read_file;
+        open_read_file.fileType = OpenFile::READ;
+        open_read_file.isCGI = true;
+        open_read_file.size = std::string::npos; // Will be later updated (in Server) based on header returned
+        int readFromCgiFd{_CgiSubprocess->getReadPipeFromCGI()};
+        _clientData->openFiles[readFromCgiFd] = open_read_file;
+        _server->getOpenFilesToClientMap()[readFromCgiFd] = _clientFd;
+        _server->getPollManager().addReadFileFd(readFromCgiFd);
+
+
+        // subprocess.writeToChild(_data.body);                // ! blocking
+        // std::string cgi_output{subprocess.readFromChild()}; // ! blocking
+        // subprocess.waitChild();                             // uses WNOHANG
+
+        // return cgiOutputToResponse(cgi_output);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << e.what() << '\n';
+        return errorResponse(500);
+    }
+}
 
 bool HTTPRequest::normalizeAndValidateUnderRoot(const std::filesystem::path &candidate, std::filesystem::path &outNormalized) const
 {

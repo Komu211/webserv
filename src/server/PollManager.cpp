@@ -43,6 +43,7 @@ void PollManager::addReadFileFd(int fd)
 void PollManager::addWriteFileFd(int fd)
 {
     addSocket(fd, POLLOUT);
+    _sockTypeMap[fd] = WRITEFILE;
     // _isServerSocket[fd] = false;
     // _isReadFile[fd] = false;
     // _isWriteFile[fd] = true;

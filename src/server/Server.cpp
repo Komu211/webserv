@@ -43,12 +43,6 @@ Server::Server(std::string configFileName)
         throw std::runtime_error("No valid listen addresses available. Cannot start server.");
 }
 
-// // Not needed + Inefficient: making a copy of vector on every return
-// std::vector<ServerConfig> Server::get_configs() const.0
-// {
-//     return _configs;
-// }
-
 void Server::fillPollManager()
 {
     for (const auto &[fd, sockPtr] : _sockets)
@@ -196,6 +190,8 @@ void Server::readFromOpenFiles()
         {
             currentRead = readFromClientOrFile(fileFd, client_data.openFiles[fileFd].content);
             std::cout << "Successfully read from file: " << fileFd << '\n';
+            if (client_data.openFiles[fileFd].isCGI)
+                client_data.openFiles[fileFd].size = HTTPRequestParser::getResponseSizeFromCgiHeader(currentRead);
         }
         catch (const std::runtime_error &e)
         {
@@ -209,6 +205,23 @@ void Server::readFromOpenFiles()
             // Nothing more to read
             client_data.openFiles[fileFd].finished = true;
             _filesToRemove.insert(fileFd);
+        }
+        // recycling isValidRequest to check if CGI response is valid
+        else if (HTTPRequestParser::isValidRequest(currentRead))
+        {
+            try
+            {
+                HTTPRequestData data = HTTPRequestParser::parse(currentRead);
+                // nothing more to read
+                client_data.openFiles[fileFd].finished = true;
+                client_data.openFiles[fileFd].content = currentRead;
+                _filesToRemove.insert(fileFd);
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error parsing cgi response: " << e.what() << '\n';
+                _filesToRemove.insert(fileFd);
+            }
         }
         else if (currentRead.size() == client_data.openFiles[fileFd].size)
         {
@@ -307,6 +320,7 @@ void Server::writeToOpenFiles()
                 if (client_data.openFiles[fileFd].content.empty())
                 {
                     std::cout << "Finished writing to file. Closing it now." << '\n';
+                    client_data.openFiles[fileFd].finished = true;
                     _filesToRemove.insert(fileFd);
                 }
             }
@@ -331,7 +345,6 @@ void Server::writeToFile(int fileFd, ClientData &client_data)
 
 void Server::respondToClient(int clientFd)
 {
-    std::cout << "Sending response to client: " << clientFd << '\n';
     // HTTPResponse = clientRequest->handle();
     // TODO: Create a HTTPResponse class and implement handle() method
     if (_clientData[clientFd].pendingResponse.response.empty())
@@ -342,6 +355,7 @@ void Server::respondToClient(int clientFd)
         else
             return;
     }
+    std::cout << "Sending response to client: " << clientFd << '\n';
     auto pendingResponse = writeResponseToClient(clientFd);
     if (pendingResponse.response.size() == pendingResponse.sent)
     {
@@ -444,4 +458,20 @@ PollManager& Server::getPollManager()
 std::unordered_map<int, int> &Server::getOpenFilesToClientMap()
 {
     return _openFilesToClientMap;
+}
+
+std::string Server::getHostFromSocketFd(int fd)
+{
+    auto sockPtrIt {_sockets.find(fd)};
+    if (sockPtrIt == _sockets.end())
+        return "";
+    return (sockPtrIt->second)->get_host();
+}
+
+std::string Server::getPortFromSocketFd(int fd)
+{
+    auto sockPtrIt {_sockets.find(fd)};
+    if (sockPtrIt == _sockets.end())
+        return "";
+    return (sockPtrIt->second)->get_port();
 }

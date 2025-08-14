@@ -17,7 +17,7 @@
 #include <unordered_set>
 #include <vector>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 4096
 
 // Global volatile flag to signal shutdown
 extern volatile std::sig_atomic_t g_shutdownServer;
@@ -45,6 +45,7 @@ struct OpenFile
     };
     std::string content;
     bool        finished{false};
+    bool        isCGI{false};
     ReadOrWrite fileType;
     std::size_t size{};
 };
@@ -56,8 +57,8 @@ struct ClientData
     PendingResponse                   pendingResponse;
     const ServerConfig               *serverConfig;
     std::unordered_map<int, OpenFile> openFiles;
-    std::string hostName;
-    std::string port;
+    std::string                       hostName;
+    std::string                       port;
 };
 
 class Server
@@ -81,8 +82,6 @@ private:
     ClientData     &getClientOfFile(int fileFd);
     void            readFromClients();
     std::string     readFromClientOrFile(int fd, std::string partialContent);
-    // std::string readFromClient(int clientFd);
-    // std::string readFromFile(int fileFd);
     void            writeToFile(int fileFd, ClientData &client_data);
     void            respondToClients();
     void            respondToClient(int clientFd);
@@ -95,16 +94,18 @@ private:
 
 public: // used by HTTPRequest
     std::unordered_map<int, ClientData> &getClientDataMap();
-    std::unordered_map<int, int> &getOpenFilesToClientMap();
-    PollManager& getPollManager();
+    std::unordered_map<int, int>        &getOpenFilesToClientMap();
+    PollManager                         &getPollManager();
+    std::string                          getHostFromSocketFd(int fd);
+    std::string                          getPortFromSocketFd(int fd);
 
 public:
     Server() = delete;
     explicit Server(std::string configFileName);
-    Server(const Server &src) = delete; // Cannot copy GlobalConfig and no need to copy
+    Server(const Server &src) = delete;
     Server(Server &&src) = delete;
-    Server &operator=(const Server &src) = delete; // Cannot copy GlobalConfig and no need to copy
-    Server &operator=(Server &&src) = delete;      // Cannot copy/move GlobalConfig and no need to copy/move
+    Server &operator=(const Server &src) = delete;
+    Server &operator=(Server &&src) = delete;
     ~Server() = default;
 
     void fillPollManager();

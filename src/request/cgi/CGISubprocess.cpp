@@ -4,8 +4,8 @@ CGISubprocess::CGISubprocess()
 {
     if (pipe(_pipe_to_cgi) != 0)
         throw std::runtime_error("Failed to create pipe to CGI: " + std::string{strerror(errno)});
-    // setNonBlocking(_pipe_to_cgi[0]); // ! temporarily comment out for blocking-test
-    // setNonBlocking(_pipe_to_cgi[1]); // ! temporarily comment out for blocking-test
+    setNonBlocking(_pipe_to_cgi[0]);
+    setNonBlocking(_pipe_to_cgi[1]);
     if (pipe(_pipe_from_cgi) != 0)
     {
         close(_pipe_to_cgi[0]);
@@ -14,8 +14,8 @@ CGISubprocess::CGISubprocess()
         _pipe_to_cgi[1] = -1;
         throw std::runtime_error("Failed to create pipe from CGI: " + std::string{strerror(errno)});
     }
-    // setNonBlocking(_pipe_from_cgi[0]); // ! temporarily comment out for blocking-test
-    // setNonBlocking(_pipe_from_cgi[1]); // ! temporarily comment out for blocking-test
+    setNonBlocking(_pipe_from_cgi[0]);
+    setNonBlocking(_pipe_from_cgi[1]);
 }
 
 CGISubprocess::~CGISubprocess()
@@ -28,23 +28,24 @@ CGISubprocess::~CGISubprocess()
         close(_pipe_from_cgi[0]);
     if (_pipe_from_cgi[1] != -1)
         close(_pipe_from_cgi[1]);
+    killSubprocess();
 }
 
-void CGISubprocess::setNonBlocking(int fd)
-{
-    int flags = fcntl(fd, F_GETFL, 0); // ? is this flag allowed
-    if (flags == -1)
-    {
-        close(fd);
-        throw std::runtime_error("Failed to get pipe fd flags: " + std::string{strerror(errno)});
-    }
+// void CGISubprocess::setNonBlocking(int fd)
+// {
+//     int flags = fcntl(fd, F_GETFL, 0); // ? is this flag allowed
+//     if (flags == -1)
+//     {
+//         close(fd);
+//         throw std::runtime_error("Failed to get pipe fd flags: " + std::string{strerror(errno)});
+//     }
 
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
-    {
-        close(fd);
-        throw std::runtime_error("Failed to set pipe fd to non-blocking mode: " + std::string{strerror(errno)});
-    }
-}
+//     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+//     {
+//         close(fd);
+//         throw std::runtime_error("Failed to set pipe fd to non-blocking mode: " + std::string{strerror(errno)});
+//     }
+// }
 
 void CGISubprocess::setEnvironment(const std::unordered_map<std::string, std::string> &envMap)
 {
@@ -90,6 +91,7 @@ void CGISubprocess::createSubprocess(const std::filesystem::path &filePathAbs, c
     // in parent
     else if (_pid > 0)
     {
+        _subprocessStarted = true;
         // close unneeded pipes
         close(_pipe_to_cgi[0]);
         _pipe_to_cgi[0] = -1;
@@ -125,35 +127,70 @@ void CGISubprocess::redirectPipesChild()
     _pipe_from_cgi[1] = -1;
 }
 
-void CGISubprocess::writeToChild(const std::string &body)
+int CGISubprocess::getWritePipeToCGI()
 {
-    write(_pipe_to_cgi[1], body.c_str(), body.length());
-
-    // Close write end to signal EOF
-    close(_pipe_to_cgi[1]);
-    _pipe_to_cgi[1] = -1;
+    return _pipe_to_cgi[1];
 }
 
-std::string CGISubprocess::readFromChild()
+int CGISubprocess::getReadPipeFromCGI()
 {
-    char        buffer[4096];
-    ssize_t     bytes_read;
-    std::string cgi_output;
-    while ((bytes_read = read(_pipe_from_cgi[0], buffer, sizeof(buffer))) > 0)
-    {
-        cgi_output.append(buffer, bytes_read);
-    }
-    close(_pipe_from_cgi[0]);
-    _pipe_from_cgi[0] = -1;
-
-    return cgi_output;
+    return _pipe_from_cgi[0];
 }
+
+bool CGISubprocess::childExitedSuccessfully()
+{
+    if (!_subprocessStarted)
+        return false;
+    waitpid(_pid, &_status, WNOHANG);
+    if (WIFEXITED(_status))
+        return true;
+    return false;
+}
+
+int CGISubprocess::getChildExitStatus()
+{
+    if (!_subprocessStarted)
+        return -1;
+    waitpid(_pid, &_status, WNOHANG);
+    if (WIFEXITED(_status))
+        return WEXITSTATUS(_status);
+    return -1;
+}
+
+void CGISubprocess::killSubprocess(int sig)
+{
+    if (_subprocessStarted)
+        kill(_pid, sig);
+}
+
+// void CGISubprocess::writeToChild(const std::string &body)
+// {
+//     write(_pipe_to_cgi[1], body.c_str(), body.length());
+
+//     // Close write end to signal EOF
+//     close(_pipe_to_cgi[1]);
+//     _pipe_to_cgi[1] = -1;
+// }
+
+// std::string CGISubprocess::readFromChild()
+// {
+//     char        buffer[4096];
+//     ssize_t     bytes_read;
+//     std::string cgi_output;
+//     while ((bytes_read = read(_pipe_from_cgi[0], buffer, sizeof(buffer))) > 0)
+//     {
+//         cgi_output.append(buffer, bytes_read);
+//     }
+//     close(_pipe_from_cgi[0]);
+//     _pipe_from_cgi[0] = -1;
+
+//     return cgi_output;
+// }
 
 void CGISubprocess::waitChild()
 {
-    int status;
-    waitpid(_pid, &status, WNOHANG);
-    if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+    waitpid(_pid, &_status, WNOHANG);
+    if (WIFEXITED(_status) && WEXITSTATUS(_status) != 0)
     {
         // CGI script exited with an error
         throw std::runtime_error("CGI script failed: " + std::string{strerror(errno)});

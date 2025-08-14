@@ -34,7 +34,6 @@ body += "</body></html>"
 # --- Print the HTTP Response ---
 # The CGI script's stdout is read by the web server.
 # First, print the headers. A blank line separates headers from the body.
-print("HTTP/1.1 200 OK", end="\r\n") # ! temporary line for testing. real CGI may not include this line
 print("Content-Type: text/html", end="\r\n")
 print(f"Content-Length: {len(body)}", end="\r\n")
 print("Status: 200 OK", end="\r\n")

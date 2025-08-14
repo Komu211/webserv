@@ -73,15 +73,15 @@ void GETRequest::generateResponse(Server* server, int clientFd)
 
 void GETRequest::serveFile(const std::filesystem::path &filePath)
 {
-    // for (const auto& [extension, interpreter] : _effective_config->getCGIHandlersMap())
-    // {
-    //     if (filePath.extension().string() == extension)
-    //         serveCGI(filePath, interpreter);
-    // }
+    for (const auto& [extension, interpreter] : _effective_config->getCGIHandlersMap())
+    {
+        if (filePath.extension().string() == extension)
+            return serveCGI(filePath, interpreter);
+    }
     try
     {
         // Will throw if fail to open fd
-        openHtmlFileSetHeaders(filePath);
+        openFileSetHeaders(filePath);
 
         return;
 
@@ -111,9 +111,19 @@ void GETRequest::continuePrevious()
             if (fileData.fileType == OpenFile::READ)
             {
                 ++num_ready;
-                if (_responseWithoutBody)
+                if (fileData.isCGI && _CgiSubprocess != nullptr)
                 {
-                    // TODO: if is CGI response, convert to full response
+                    if (_CgiSubprocess->getChildExitStatus() == 0)
+                        cgiOutputToResponse(fileData.content);
+                    else
+                    {
+                        _CgiSubprocess->killSubprocess();
+                        _responseState = IN_PROGRESS;
+                        return errorResponse(500);
+                    }
+                }
+                else if (_responseWithoutBody != nullptr)
+                {
                     _responseWithoutBody->setBody(fileData.content);
                     _fullResponse = _responseWithoutBody->write();
                 }
@@ -121,7 +131,7 @@ void GETRequest::continuePrevious()
             else if (fileData.fileType == OpenFile::WRITE)
             {
                 ++num_ready;
-                // TODO: Write to CGI
+                // ? nothing to do?
             }
         }
     }

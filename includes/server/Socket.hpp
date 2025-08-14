@@ -23,8 +23,8 @@ class Socket
 {
 public:
     explicit Socket(const AddrInfoPair &addr_info_pair);
-    Socket(const Socket &src) = delete;            // Cannot copy (has const members) and no need to copy
-    Socket &operator=(const Socket &src) = delete; // Cannot copy (has const members) and no need to copy
+    Socket(const Socket &src) = delete;            
+    Socket &operator=(const Socket &src) = delete; 
     ~Socket();
 
     bool operator==(const Socket &other) const;

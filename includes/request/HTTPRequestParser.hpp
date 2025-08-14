@@ -19,4 +19,5 @@ private:
 public:
     static bool isValidRequest(const std::string &request_str);
     static HTTPRequestData parse(const std::string &request_str);
+    static std::size_t getResponseSizeFromCgiHeader(const std::string& cgiResponseStr);
 };

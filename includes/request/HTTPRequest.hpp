@@ -6,6 +6,7 @@
 #include "ResponseWriter.hpp"
 #include "PollManager.hpp"
 #include "Server.hpp"
+#include "HTTPRequestParser.hpp"
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -15,12 +16,15 @@
 #include <unistd.h>
 #include <memory>
 #include <unordered_set>
+#include <sstream>
+#include "utils.hpp"
 
 // Forward declarations
 class Server;
 class LocationConfig;
 class ResponseWriter;
 class PollManager;
+class HTTPRequestParser;
 struct OpenFile;
 struct ClientData;
 
@@ -39,6 +43,7 @@ protected:
     ResponseState _responseState{NOT_STARTED};
     // ResponseWriter* responseWithoutBody{nullptr};
     std::unique_ptr<ResponseWriter> _responseWithoutBody{nullptr};
+    std::unique_ptr<CGISubprocess> _CgiSubprocess{nullptr};
     std::string _fullResponse;
     Server* _server;
     int _clientFd;
@@ -60,14 +65,16 @@ protected: // helper functions to use within public member functions of inherite
     // Returning error response based on the provided code
     // [[nodiscard]] std::string errorResponse(int errorCode) const; // ! delete
     // Handle CGI and return the full response to be sent to client
-    // [[nodiscard]] std::string serveCGI(const std::filesystem::path &filePath, const std::string &interpreter) const; // TODO
+    void serveCGI(const std::filesystem::path &filePath, const std::string &interpreter);
     // Create environment variables for CGI subprocess // ! skips SERVER_PORT and REMOTE_ADDR since they are not in HTTPRequestData
     [[nodiscard]] std::unordered_map<std::string, std::string> createCGIenvironment(const std::filesystem::path &filePath) const;
 
     void errorResponse(int errorCode);
     // bool errorResponseRequiresReadingFile(int errorCode);
-    // Opens an fd for HTML file, adds it to poll manager, initalizes _responseWithoutBody, throws on open error
-    void openHtmlFileSetHeaders(const std::filesystem::path &filePath);
+    // Opens an fd for file, adds it to poll manager, initalizes _responseWithoutBody, throws on open error
+    void openFileSetHeaders(const std::filesystem::path &filePath);
+    // Converts the CGI output to a final response ready to be sent to client
+    void cgiOutputToResponse(const std::string& cgi_output);
 
     // Normalize path and validate it is under root
     bool normalizeAndValidateUnderRoot(const std::filesystem::path &candidate, std::filesystem::path &outNormalized) const;
