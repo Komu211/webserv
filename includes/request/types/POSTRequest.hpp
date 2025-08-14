@@ -11,9 +11,11 @@ class POSTRequest final : public HTTPRequest
 public:
     POSTRequest() = delete;
     explicit POSTRequest(HTTPRequestData data, const LocationConfig* location_config);
-    POSTRequest(const POSTRequest &) = default;
-    POSTRequest(POSTRequest &&) = default;
+    POSTRequest(const POSTRequest &) = delete;
+    POSTRequest(POSTRequest &&) = delete;
     ~POSTRequest() override = default;
     
-    std::string getFullResponse() override;
+    void generateResponse(Server* server, int clientFd) override;
+
+    virtual void continuePrevious() override;
 };

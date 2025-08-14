@@ -247,18 +247,18 @@ std::string getLastModTimeHTTP(const std::filesystem::path &filePath)
     return "Unknown"; // Generally should not be reached
 }
 
-std::string readFileToString(const std::string &filename)
-{
-    std::ifstream file(filename);
-    if (!file)
-    {
-        throw std::runtime_error("Cannot open file: " + filename);
-    }
+// std::string readFileToString(const std::string &filename)
+// {
+//     std::ifstream file(filename);
+//     if (!file)
+//     {
+//         throw std::runtime_error("Cannot open file: " + filename);
+//     }
 
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return buffer.str();
-}
+//     std::stringstream buffer;
+//     buffer << file.rdbuf();
+//     return buffer.str();
+// }
 
 std::string bytesToHumanReadable(std::size_t size)
 {
@@ -269,6 +269,12 @@ std::string bytesToHumanReadable(std::size_t size)
     oss << std::ceil(mantissa * 10.) / 10. << "BKMGTPE"[o];
     // o ? oss << "B (" << size << ')' : oss;
     return oss.str();
+}
+
+void removeLeadingSlash(std::string& str)
+{
+    if (str.length() && str[0] == '/')
+        str.erase(str.begin());
 }
 
 std::string reasonPhraseFromStatusCode(int code)

@@ -7,12 +7,14 @@ class GETRequest final : public HTTPRequest
 public:
     GETRequest() = delete;
     explicit GETRequest(HTTPRequestData data, const LocationConfig *location_config);
-    GETRequest(const GETRequest &) = default;
-    GETRequest(GETRequest &&) = default;
+    GETRequest(const GETRequest &) = delete;
+    GETRequest(GETRequest &&) = delete;
     ~GETRequest() override = default;
 
-    std::string getFullResponse() override;
+    void generateResponse(Server* server, int clientFd) override;
 
 private:
-    [[nodiscard]] std::string serveFile(const std::filesystem::path &filePath) const;
+    void serveFile(const std::filesystem::path &filePath);
+
+    virtual void continuePrevious() override;
 };

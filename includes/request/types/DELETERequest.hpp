@@ -7,9 +7,11 @@ class DELETERequest final : public HTTPRequest
 public:
     DELETERequest() = delete;
     explicit DELETERequest(HTTPRequestData data, const LocationConfig* location_config);
-    DELETERequest(const DELETERequest &) = default;
-    DELETERequest(DELETERequest &&) = default;
+    DELETERequest(const DELETERequest &) = delete;
+    DELETERequest(DELETERequest &&) = delete;
     ~DELETERequest() override = default;
 
-    std::string getFullResponse() override;
+    void generateResponse(Server* server, int clientFd) override;
+
+    virtual void continuePrevious() override;
 };

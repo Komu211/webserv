@@ -127,7 +127,7 @@ void Server::acceptNewConnection(int serverFd)
     {
         std::cout << "Accepted new connection via: \n" << *(_sockets[serverFd]) << '\n';
         _pollManager.addClientSocket(clientFd);
-        _clientData[clientFd] = {"", nullptr, {}, _socket_to_server_config[serverFd], {}};
+        _clientData[clientFd] = {"", nullptr, {}, _socket_to_server_config[serverFd], {}, _sockets[serverFd]->get_host(), _sockets[serverFd]->get_port()};
     }
     else
     {
@@ -203,11 +203,22 @@ void Server::readFromOpenFiles()
             _filesToRemove.insert(fileFd);
             continue;
         }
+        // std::cout << "currentRead.size() is " << currentRead.size() << " and client_data.openFiles[fileFd].size is " << client_data.openFiles[fileFd].size << '\n';
         if (currentRead.empty())
+        {
+            // Nothing more to read
+            client_data.openFiles[fileFd].finished = true;
             _filesToRemove.insert(fileFd);
+        }
+        else if (currentRead.size() == client_data.openFiles[fileFd].size)
+        {
+            // nothing more to read
+            client_data.openFiles[fileFd].finished = true;
+            client_data.openFiles[fileFd].content = currentRead;
+            _filesToRemove.insert(fileFd);
+        }
         else
         {
-            client_data.openFiles[fileFd].finished = true;
             client_data.openFiles[fileFd].content = currentRead;
         }
     }
@@ -325,10 +336,11 @@ void Server::respondToClient(int clientFd)
     // TODO: Create a HTTPResponse class and implement handle() method
     if (_clientData[clientFd].pendingResponse.response.empty())
     {
-        // TODO: _clientData[clientFd].parsedRequest->generateResponse(Server& server)
-        // TODO: if _clientData[clientFd].parsedRequest->fullResponseIsReady()
-        _clientData[clientFd].pendingResponse = {_clientData[clientFd].parsedRequest->getFullResponse(), 0};
-        // TODO:  else return
+        _clientData[clientFd].parsedRequest->generateResponse(this, clientFd);
+        if (_clientData[clientFd].parsedRequest->fullResponseIsReady())
+            _clientData[clientFd].pendingResponse = {_clientData[clientFd].parsedRequest->getFullResponse(), 0};
+        else
+            return;
     }
     auto pendingResponse = writeResponseToClient(clientFd);
     if (pendingResponse.response.size() == pendingResponse.sent)
@@ -417,4 +429,19 @@ const LocationConfig *Server::findLocationConfig(const std::string &uri, const S
     }
 
     return best_match;
+}
+
+std::unordered_map<int, ClientData> &Server::getClientDataMap()
+{
+    return _clientData;
+}
+
+PollManager& Server::getPollManager()
+{
+    return _pollManager;
+}
+
+std::unordered_map<int, int> &Server::getOpenFilesToClientMap()
+{
+    return _openFilesToClientMap;
 }

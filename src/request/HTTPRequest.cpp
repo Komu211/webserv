@@ -11,40 +11,106 @@ bool HTTPRequest::isCloseConnection() const
     return _data.headers.find("Connection") != _data.headers.end() && _data.headers.at("Connection") == "close";
 }
 
+bool HTTPRequest::fullResponseIsReady()
+{
+    return _responseState == READY;
+}
+
+std::string HTTPRequest::getFullResponse()
+{
+    return _fullResponse;
+}
+
 std::string HTTPRequest::getURInoLeadingSlash() const
 {
     std::string result{_data.uri};
 
-    if (result.length() && result[0] == '/')
-        result.erase(result.begin());
+    removeLeadingSlash(result);
 
     return result;
 }
 
-std::string HTTPRequest::getErrorResponseBody(int errorCode) const
+void HTTPRequest::errorResponse(int errorCode)
 {
-    // The default minimal response body
-    std::string result{getMinimalErrorDefaultBody(errorCode)};
-
     try
     {
-        // Will throw if no error page is not defined
-        std::string error_file{_effective_config->getErrorPagesMap().at(404)};
+        // Will throw if error page is not defined
+        std::string error_file{_effective_config->getErrorPagesMap().at(errorCode)};
 
-        // Will throw if file could not be opened
-        result = readFileToString(error_file);
+        std::filesystem::path errorPagePath{_effective_config->getRoot()};
+        errorPagePath /= error_file; // errorPagePath = root + error_file
+        // ? or is errorPagePath = root + current location + error_file ?
+    
+        openHtmlFileSetHeaders(errorPagePath);
+    
+        return;
     }
     catch (const std::out_of_range &)
     {
         std::cerr << "Custom error page for " << errorCode << " not defined. Returning default error response body." << '\n';
     }
-    catch (const std::exception &)
+    catch (const std::exception& e)
     {
-        std::cerr << "Custom error page file for " << errorCode << " could not be opened. Returning default error response body." << '\n';
+        std::cerr << "Custom error page file for " << errorCode << " could not be opened: " << e.what() << ". Returning default error response body." << '\n';
     }
 
-    return result;
+    // The default minimal response body
+    std::string minimalResponseStr{getMinimalErrorDefaultBody(errorCode)};
+
+    ResponseWriter response(errorCode, {{"Content-Type", "text/html"}}, minimalResponseStr);
+    _fullResponse = response.write();
+    _responseState = READY;
 }
+
+void HTTPRequest::openHtmlFileSetHeaders(const std::filesystem::path &filePath)
+{
+    int fd = open(filePath.c_str(), O_RDONLY);
+    if (fd == -1)
+        throw std::runtime_error(strerror(errno));
+    OpenFile open_file;
+    open_file.fileType = OpenFile::READ;
+    open_file.size = std::filesystem::file_size(filePath);
+    _clientData->openFiles[fd] = open_file;
+    _server->getOpenFilesToClientMap()[fd] = _clientFd;
+    _server->getPollManager().addReadFileFd(fd);
+
+    std::unordered_map<std::string, std::string> headers;
+    headers["Content-Type"] = getMIMEtype(filePath.extension().string());
+    headers["Last-Modified"] = getLastModTimeHTTP(filePath);
+
+    _responseWithoutBody = std::make_unique<ResponseWriter>(200, headers, "");
+}
+
+// std::string HTTPRequest::errorResponse(int errorCode) const
+// {
+//     ResponseWriter response(errorCode, {{"Content-Type", "text/html"}}, getErrorResponseBody(errorCode));
+//     return response.write();
+// }
+
+// std::string HTTPRequest::getErrorResponseBody(int errorCode) const
+// {
+//     // The default minimal response body
+//     std::string result{getMinimalErrorDefaultBody(errorCode)};
+
+//     try
+//     {
+//         // Will throw if no error page is not defined
+//         std::string error_file{_effective_config->getErrorPagesMap().at(errorCode)};
+
+//         // Will throw if file could not be opened
+//         result = readFileToString(error_file);
+//     }
+//     catch (const std::out_of_range &)
+//     {
+//         std::cerr << "Custom error page for " << errorCode << " not defined. Returning default error response body." << '\n';
+//     }
+//     catch (const std::exception &)
+//     {
+//         std::cerr << "Custom error page file for " << errorCode << " could not be opened. Returning default error response body." << '\n';
+//     }
+
+//     return result;
+// }
 
 std::string HTTPRequest::getMinimalErrorDefaultBody(int errorCode) const
 {
@@ -164,7 +230,7 @@ std::string HTTPRequest::getDirectoryListingBody(const std::filesystem::path &di
     auto filesVec = listDirectory(dirPath);
 
     if (filesVec.empty())
-        return getErrorResponseBody(404); // Should never happen but just to be safe
+        return getMinimalErrorDefaultBody(404); // Should never happen but just to be safe
 
     std::string html = "<!DOCTYPE html>\n<html>\n<head>\n";
     html += "<title>Index of " + _data.uri + "</title>\n";
@@ -228,7 +294,7 @@ std::string HTTPRequest::getDirectoryListingBody(const std::filesystem::path &di
     return html;
 }
 
-std::string HTTPRequest::handleRedirection(const std::pair<int, std::string> &redirectInfo) const
+void HTTPRequest::handleRedirection(const std::pair<int, std::string> &redirectInfo)
 {
     std::string codeWithReasonPhrase{std::to_string(redirectInfo.first) + " " + reasonPhraseFromStatusCode(redirectInfo.first)};
     std::string responseBody{"<html><head><title>"};
@@ -244,7 +310,8 @@ std::string HTTPRequest::handleRedirection(const std::pair<int, std::string> &re
         headers["Location"] = redirectInfo.second;
     ResponseWriter response(redirectInfo.first, headers, responseBody);
 
-    return response.write();
+    _fullResponse = response.write();
+    _responseState = READY;
 }
 
 std::string HTTPRequest::getMIMEtype(const std::string &extension) const
@@ -275,12 +342,6 @@ std::string HTTPRequest::getMIMEtype(const std::string &extension) const
         return "text/plain"; // for extensionless files
     // ... more mappings can be added
     return "application/octet-stream"; // for unknown extensions
-}
-
-std::string HTTPRequest::errorResponse(int errorCode) const
-{
-    ResponseWriter response(errorCode, {{"Content-Type", "text/html"}}, getErrorResponseBody(errorCode));
-    return response.write();
 }
 
 std::unordered_map<std::string, std::string> HTTPRequest::createCGIenvironment(const std::filesystem::path &filePathAbs) const
@@ -323,30 +384,31 @@ std::unordered_map<std::string, std::string> HTTPRequest::createCGIenvironment(c
     return envMap;
 }
 
-std::string HTTPRequest::serveCGI(const std::filesystem::path &filePath, const std::string &interpreter) const
-{
-    if (!std::filesystem::exists(filePath))
-        return errorResponse(404);
+// TODO
+// std::string HTTPRequest::serveCGI(const std::filesystem::path &filePath, const std::string &interpreter) const
+// {
+//     if (!std::filesystem::exists(filePath))
+//         return errorResponse(404);
 
-    auto filePathAbs{std::filesystem::absolute(filePath)};
-    try
-    {
-        CGISubprocess subprocess;
-        subprocess.setEnvironment(createCGIenvironment(filePathAbs));
-        subprocess.createSubprocess(filePathAbs, interpreter);
-        subprocess.writeToChild(_data.body);                // ! blocking
-        std::string cgi_output{subprocess.readFromChild()}; // ! blocking
-        subprocess.waitChild();                             // uses WNOHANG
+//     auto filePathAbs{std::filesystem::absolute(filePath)};
+//     try
+//     {
+//         CGISubprocess subprocess;
+//         subprocess.setEnvironment(createCGIenvironment(filePathAbs));
+//         subprocess.createSubprocess(filePathAbs, interpreter);
+//         subprocess.writeToChild(_data.body);                // ! blocking
+//         std::string cgi_output{subprocess.readFromChild()}; // ! blocking
+//         subprocess.waitChild();                             // uses WNOHANG
 
-        // TODO: before returning, parse CGI-returned response and add any missing headers and status OK, etc.
-        return cgi_output;
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << e.what() << '\n';
-        return errorResponse(500);
-    }
-}
+//         // TODO: before returning, parse CGI-returned response and add any missing headers and status OK, etc.
+//         return cgi_output;
+//     }
+//     catch (const std::exception &e)
+//     {
+//         std::cerr << e.what() << '\n';
+//         return errorResponse(500);
+//     }
+// }
 
 bool HTTPRequest::normalizeAndValidateUnderRoot(const std::filesystem::path &candidate, std::filesystem::path &outNormalized) const
 {

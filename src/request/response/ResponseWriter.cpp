@@ -13,8 +13,15 @@ ResponseWriter::ResponseWriter(int statusCode, const std::unordered_map<std::str
         _headers[key] = value;
 }
 
-std::string ResponseWriter::write() const
+void ResponseWriter::setBody(const std::string& body)
 {
+    _response_body = body;
+}
+
+std::string ResponseWriter::write()
+{
+    _headers["Content-Length"] = std::to_string(_response_body.length());
+
     std::string responseStr {_start_line + "\r\n"};
     responseStr.reserve(200 + _response_body.length());
 

@@ -4,8 +4,18 @@ POSTRequest::POSTRequest(HTTPRequestData data, const LocationConfig* location_co
     HTTPRequest(data, location_config)
 {}
 
-std::string POSTRequest::getFullResponse()
+void POSTRequest::generateResponse(Server* server, int clientFd)
 {
+    _server = server;
+    _clientFd = clientFd;
+    _clientData = &(_server->getClientDataMap()[_clientFd]);
+
+    // Check if we are generating brand new response or continuing previous
+    if (_responseState != NOT_STARTED)
+        return continuePrevious();
+
+    _responseState = IN_PROGRESS;
+
     // Check POST method allowed
     if (!_effective_config->getLimitExcept().empty() &&
         _effective_config->getLimitExcept().find("post") == _effective_config->getLimitExcept().end())
@@ -71,6 +81,7 @@ std::string POSTRequest::getFullResponse()
     }
 
     // Stream body to disk in chunks
+    // TODO: add to poll manager, set state, and come back to write later
     try
     {
         std::ofstream out(targetPath, std::ios::binary);
@@ -94,8 +105,39 @@ std::string POSTRequest::getFullResponse()
     }
 
     // Success response
+    // TODO: move to continuePrevious()
     std::ostringstream body;
     body << "Uploaded '" << targetPath.filename().string() << "' (" << _data.body.size() << ") bytes\n";
     ResponseWriter response(201, {{"Content-Type", "text/plain"}}, body.str());
-    return response.write();
+    _fullResponse = response.write();
+    _responseState = READY;
 }
+
+void POSTRequest::continuePrevious()
+{
+    std::size_t num_ready{0};
+    for (auto& [fileFd, fileData] : _clientData->openFiles)
+    {
+        if (fileData.finished)
+        {
+            if (fileData.fileType == OpenFile::READ)
+            {
+                ++num_ready;
+                if (_responseWithoutBody)
+                {
+                    // TODO: if is CGI response, convert to full response
+                    _responseWithoutBody->setBody(fileData.content);
+                    _fullResponse = _responseWithoutBody->write();
+                }
+            }
+            else if (fileData.fileType == OpenFile::WRITE)
+            {
+                ++num_ready;
+                // TODO: Write to file or CGI
+            }
+        }
+    }
+    if (num_ready == _clientData->openFiles.size())
+        _responseState = READY;
+}
+

@@ -17,7 +17,8 @@ public:
 
     explicit ResponseWriter(int statusCode, const std::unordered_map<std::string, std::string>& headers, const std::string& response_body);
 
-    std::string write() const;
+    void setBody(const std::string& body);
+    std::string write();
 
 private:
     std::string _start_line;

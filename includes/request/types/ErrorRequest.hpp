@@ -9,9 +9,11 @@ private:
 public:
     ErrorRequest() = delete;
     explicit ErrorRequest(HTTPRequestData data, int errorCode, const LocationConfig* location_config);
-    ErrorRequest(const ErrorRequest &) = default;
-    ErrorRequest(ErrorRequest &&) = default;
+    ErrorRequest(const ErrorRequest &) = delete;
+    ErrorRequest(ErrorRequest &&) = delete;
     ~ErrorRequest() override = default;
     
-    std::string getFullResponse() override;
+    void generateResponse(Server* server, int clientFd) override;
+
+    virtual void continuePrevious() override;
 };

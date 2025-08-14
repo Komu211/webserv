@@ -33,12 +33,12 @@ bool Socket::operator!=(const Socket &other) const
     return !(*this == other);
 }
 
-std::string Socket::get_host() const
+const std::string& Socket::get_host() const
 {
     return _host;
 }
 
-std::string Socket::get_port() const
+const std::string& Socket::get_port() const
 {
     return _port;
 }

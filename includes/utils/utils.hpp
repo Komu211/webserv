@@ -49,7 +49,10 @@ std::string getCurrentGMTString();
 std::string getLastModTimeHTTP(const std::filesystem::path& filePath);
 
 // Read the entire file content into a string. Throw on error
-std::string readFileToString(const std::string &filename);
+// std::string readFileToString(const std::string &filename);
+
+// Remove leading forward slash if it exists
+void removeLeadingSlash(std::string& str);
 
 // Returns a human-readable string form of a site_t bytes value
 std::string bytesToHumanReadable(std::size_t size);

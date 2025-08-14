@@ -5,8 +5,18 @@ GETRequest::GETRequest(HTTPRequestData data, const LocationConfig *location_conf
 {
 }
 
-std::string GETRequest::getFullResponse()
+void GETRequest::generateResponse(Server* server, int clientFd)
 {
+    _server = server;
+    _clientFd = clientFd;
+    _clientData = &(_server->getClientDataMap()[_clientFd]);
+
+    // Check if we are generating brand new response or continuing previous
+    if (_responseState != NOT_STARTED)
+        return continuePrevious();
+
+    _responseState = IN_PROGRESS;
+
     // Check if GET requests for this URI are allowed
     if (!_effective_config->getLimitExcept().empty() &&
         _effective_config->getLimitExcept().find("get") == _effective_config->getLimitExcept().end())
@@ -45,7 +55,9 @@ std::string GETRequest::getFullResponse()
             if (_effective_config->getAutoIndex())
             {
                 ResponseWriter response(200, {{"Content-Type", "text/html"}}, getDirectoryListingBody(safePath));
-                return response.write();
+                _fullResponse = response.write();
+                _responseState = READY;
+                return;
             }
         }
         else
@@ -56,33 +68,63 @@ std::string GETRequest::getFullResponse()
     }
 
     // requested resource (file or directory) doesn't exist
-    return errorResponse(404);
+    errorResponse(404);
 }
 
-std::string GETRequest::serveFile(const std::filesystem::path &filePath) const
+void GETRequest::serveFile(const std::filesystem::path &filePath)
 {
-    for (const auto& [extension, interpreter] : _effective_config->getCGIHandlersMap())
-    {
-        if (filePath.extension().string() == extension)
-            return serveCGI(filePath, interpreter);
-    }
+    // for (const auto& [extension, interpreter] : _effective_config->getCGIHandlersMap())
+    // {
+    //     if (filePath.extension().string() == extension)
+    //         serveCGI(filePath, interpreter);
+    // }
     try
     {
+        // Will throw if fail to open fd
+        openHtmlFileSetHeaders(filePath);
+
+        return;
+
         // Will throw on any read error
-        std::string fileContents{readFileToString(filePath.string())};
+        // std::string fileContents{readFileToString(filePath.string())};
 
-        std::unordered_map<std::string, std::string> headers;
-        headers["Content-Type"] = getMIMEtype(filePath.extension().string());
-        headers["Last-Modified"] = getLastModTimeHTTP(filePath);
-
-        ResponseWriter response(200, headers, fileContents);
-        return response.write();
+        // ResponseWriter response(200, headers, fileContents);
+        // return response.write();
     }
-    catch (const std::exception &)
+    catch (const std::exception &e)
     {
-        std::cerr << "File " << _data.uri << " could not be opened." << '\n';
+        std::cerr << "File " << _data.uri << " could not be opened: " << e.what() << '\n';
     }
     // Error reading from file
     // RFC says 403 Forbidden can be replaced by 404 Not Found, if desired
-    return errorResponse(403);
+    errorResponse(403);
+}
+
+
+void GETRequest::continuePrevious()
+{
+    std::size_t num_ready{0};
+    for (auto& [fileFd, fileData] : _clientData->openFiles)
+    {
+        if (fileData.finished)
+        {
+            if (fileData.fileType == OpenFile::READ)
+            {
+                ++num_ready;
+                if (_responseWithoutBody)
+                {
+                    // TODO: if is CGI response, convert to full response
+                    _responseWithoutBody->setBody(fileData.content);
+                    _fullResponse = _responseWithoutBody->write();
+                }
+            }
+            else if (fileData.fileType == OpenFile::WRITE)
+            {
+                ++num_ready;
+                // TODO: Write to CGI
+            }
+        }
+    }
+    if (num_ready == _clientData->openFiles.size())
+        _responseState = READY;
 }

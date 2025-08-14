@@ -46,15 +46,18 @@ struct OpenFile
     std::string content;
     bool        finished{false};
     ReadOrWrite fileType;
+    std::size_t size{};
 };
 
 struct ClientData
 {
-    std::string                       partialRequest;
-    std::unique_ptr<HTTPRequest>      parsedRequest;
+    std::string                       partialRequest{""};
+    std::unique_ptr<HTTPRequest>      parsedRequest{nullptr};
     PendingResponse                   pendingResponse;
     const ServerConfig               *serverConfig;
     std::unordered_map<int, OpenFile> openFiles;
+    std::string hostName;
+    std::string port;
 };
 
 class Server
@@ -89,6 +92,11 @@ private:
     PendingResponse writeResponseToClient(int clientFd);
 
     const LocationConfig *findLocationConfig(const std::string &uri, const ServerConfig *server_config) const;
+
+public: // used by HTTPRequest
+    std::unordered_map<int, ClientData> &getClientDataMap();
+    std::unordered_map<int, int> &getOpenFilesToClientMap();
+    PollManager& getPollManager();
 
 public:
     Server() = delete;

@@ -4,8 +4,19 @@ DELETERequest::DELETERequest(HTTPRequestData data, const LocationConfig* locatio
     HTTPRequest(data, location_config)
 {}
 
-std::string DELETERequest::getFullResponse()
+// ? not sure if we need to handle DELETE in CGI
+void DELETERequest::generateResponse(Server* server, int clientFd)
 {
+    _server = server;
+    _clientFd = clientFd;
+    _clientData = &(_server->getClientDataMap()[_clientFd]);
+
+    // Check if we are generating brand new response or continuing previous
+    if (_responseState != NOT_STARTED)
+        return continuePrevious();
+
+    _responseState = IN_PROGRESS;
+
     // Check method allowed
     if (!_effective_config->getLimitExcept().empty() &&
         _effective_config->getLimitExcept().find("delete") == _effective_config->getLimitExcept().end())
@@ -42,5 +53,32 @@ std::string DELETERequest::getFullResponse()
         return errorResponse(404);
 
     ResponseWriter response(200, {{"Content-Type", "text/plain"}}, std::string("Deleted \"") + safePath.filename().string() + "\"\n");
-    return response.write();
+    _fullResponse = response.write();
+    _responseState = READY;
+}
+
+void DELETERequest::continuePrevious()
+{
+    std::size_t num_ready{0};
+    for (auto& [fileFd, fileData] : _clientData->openFiles)
+    {
+        if (fileData.finished)
+        {
+            if (fileData.fileType == OpenFile::READ)
+            {
+                ++num_ready;
+                if (_responseWithoutBody)
+                {
+                    // ? not sure if there is something to do here
+                }
+            }
+            else if (fileData.fileType == OpenFile::WRITE)
+            {
+                ++num_ready;
+                // ? not sure if there is something to do here
+            }
+        }
+    }
+    if (num_ready == _clientData->openFiles.size())
+        _responseState = READY;
 }

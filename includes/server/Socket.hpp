@@ -30,8 +30,8 @@ public:
     bool operator==(const Socket &other) const;
     bool operator!=(const Socket &other) const;
 
-    [[nodiscard]] std::string get_host() const;
-    [[nodiscard]] std::string get_port() const;
+    [[nodiscard]] const std::string& get_host() const;
+    [[nodiscard]] const std::string& get_port() const;
     [[nodiscard]] int         get_fd() const;
 
     // void set_host(const std::string &host); // Not needed
