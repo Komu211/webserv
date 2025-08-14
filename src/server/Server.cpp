@@ -3,7 +3,6 @@
 #include "HTTPRequest.hpp"
 #include "HTTPRequestFactory.hpp"
 
-#include <utility>
 
 Server::Server(std::string configFileName)
     : _global_config{std::move(configFileName)} // Initiate parsing of the config file
@@ -121,7 +120,8 @@ void Server::acceptNewConnection(int serverFd)
     {
         std::cout << "Accepted new connection via: \n" << *(_sockets[serverFd]) << '\n';
         _pollManager.addClientSocket(clientFd);
-        _clientData[clientFd] = {"", nullptr, {}, _socket_to_server_config[serverFd], {}, _sockets[serverFd]->get_host(), _sockets[serverFd]->get_port()};
+        _clientData[clientFd] = {
+            "", nullptr, {}, _socket_to_server_config[serverFd], {}, _sockets[serverFd]->get_host(), _sockets[serverFd]->get_port()};
     }
     else
     {
@@ -199,7 +199,6 @@ void Server::readFromOpenFiles()
             _filesToRemove.insert(fileFd);
             continue;
         }
-        // std::cout << "currentRead.size() is " << currentRead.size() << " and client_data.openFiles[fileFd].size is " << client_data.openFiles[fileFd].size << '\n';
         if (currentRead.empty())
         {
             // Nothing more to read
@@ -253,40 +252,6 @@ std::string Server::readFromClientOrFile(int fd, std::string partialContent)
         throw std::runtime_error("Error reading from file/client " + std::to_string(fd) + ": " + strerror(errno));
 }
 
-// std::string Server::readFromFile(int fileFd)
-// {
-//     char          buffer[BUFFER_SIZE];
-//     const ssize_t bytesRead = read(fileFd, buffer, BUFFER_SIZE);
-//     std::string   partialRead = getClientOfFile(fileFd).openFiles[fileFd].content;
-
-//     if (bytesRead > 0)
-//     {
-//         partialRead.append(buffer, static_cast<size_t>(bytesRead));
-//         return partialRead;
-//     }
-//     else if (bytesRead == 0)
-//         return ""; // Finished reading file
-//     else
-//         throw std::runtime_error("Error reading from file " + std::to_string(fileFd) + ": " + strerror(errno));
-// }
-
-// std::string Server::readFromClient(int clientFd)
-// {
-//     char          buffer[BUFFER_SIZE];
-//     const ssize_t bytesRead = read(clientFd, buffer, BUFFER_SIZE);
-//     std::string   partialRequest = _clientData[clientFd].partialRequest;
-
-//     if (bytesRead > 0)
-//     {
-//         partialRequest.append(buffer, static_cast<size_t>(bytesRead));
-//         return partialRequest;
-//     }
-//     else if (bytesRead == 0)
-//         return ""; // Client has closed connection
-//     else
-//         throw std::runtime_error("Error reading from client " + std::to_string(clientFd) + ": " + strerror(errno));
-// }
-
 void Server::respondToClients()
 {
     for (int clientFd : _pollManager.getWritableClientSockets())
@@ -304,6 +269,46 @@ void Server::respondToClients()
             }
         }
     }
+}
+
+void Server::respondToClient(int clientFd)
+{
+    if (_clientData[clientFd].pendingResponse.response.empty())
+    {
+        _clientData[clientFd].parsedRequest->generateResponse(this, clientFd);
+        if (_clientData[clientFd].parsedRequest->fullResponseIsReady())
+            _clientData[clientFd].pendingResponse = {_clientData[clientFd].parsedRequest->getFullResponse(), 0};
+        else
+            return;
+    }
+    std::cout << "Sending response to client: " << clientFd << '\n';
+    auto pendingResponse = writeResponseToClient(clientFd);
+    if (pendingResponse.response.size() == pendingResponse.sent)
+    {
+        std::cout << "All sent, switch back to listening" << std::endl;
+        if (_clientData[clientFd].parsedRequest->isCloseConnection())
+            _clientsToRemove.insert(clientFd);
+        _clientData[clientFd].pendingResponse = {};
+        _clientData[clientFd].parsedRequest = nullptr;
+        _pollManager.updateEvents(clientFd, POLLIN); // Start monitoring for reading new requests
+        _pollManager.removeEvents(clientFd, POLLOUT); // Stop monitoring for writing until new request arrives / new response is ready
+    }
+    else
+        _clientData[clientFd].pendingResponse = pendingResponse;
+}
+
+PendingResponse Server::writeResponseToClient(int clientFd)
+{
+    auto pendingResponses = _clientData[clientFd].pendingResponse;
+    auto responseRemainder = pendingResponses.response.c_str() + pendingResponses.sent;
+    auto remainingToSend = pendingResponses.response.size() - pendingResponses.sent;
+
+    // Send response back to client
+    ssize_t bytesWritten = write(clientFd, responseRemainder, remainingToSend);
+    if (bytesWritten < 0)
+        throw std::runtime_error("Error writing to client " + std::to_string(clientFd) + ": " + strerror(errno));
+    pendingResponses.sent += bytesWritten;
+    return pendingResponses;
 }
 
 void Server::writeToOpenFiles()
@@ -341,48 +346,6 @@ void Server::writeToFile(int fileFd, ClientData &client_data)
     if (bytesWritten < 0)
         throw std::runtime_error("Error writing to file " + std::to_string(fileFd) + ": " + strerror(errno));
     client_data.openFiles[fileFd].content.erase(0, bytesWritten);
-}
-
-void Server::respondToClient(int clientFd)
-{
-    // HTTPResponse = clientRequest->handle();
-    // TODO: Create a HTTPResponse class and implement handle() method
-    if (_clientData[clientFd].pendingResponse.response.empty())
-    {
-        _clientData[clientFd].parsedRequest->generateResponse(this, clientFd);
-        if (_clientData[clientFd].parsedRequest->fullResponseIsReady())
-            _clientData[clientFd].pendingResponse = {_clientData[clientFd].parsedRequest->getFullResponse(), 0};
-        else
-            return;
-    }
-    std::cout << "Sending response to client: " << clientFd << '\n';
-    auto pendingResponse = writeResponseToClient(clientFd);
-    if (pendingResponse.response.size() == pendingResponse.sent)
-    {
-        std::cout << "All sent, switch back to listening" << std::endl;
-        if (_clientData[clientFd].parsedRequest->isCloseConnection())
-            _clientsToRemove.insert(clientFd);
-        _clientData[clientFd].pendingResponse = {};
-        _clientData[clientFd].parsedRequest = nullptr;
-        _pollManager.updateEvents(clientFd, POLLIN); // Start monitoring for reading new requests
-        _pollManager.removeEvents(clientFd, POLLOUT); // Stop monitoring for writing until new request arrives / new response is ready
-    }
-    else
-        _clientData[clientFd].pendingResponse = pendingResponse;
-}
-
-PendingResponse Server::writeResponseToClient(int clientFd)
-{
-    auto pendingResponses = _clientData[clientFd].pendingResponse;
-    auto responseRemainder = pendingResponses.response.c_str() + pendingResponses.sent;
-    auto remainingToSend = pendingResponses.response.size() - pendingResponses.sent;
-
-    // Send response back to client
-    ssize_t bytesWritten = write(clientFd, responseRemainder, remainingToSend);
-    if (bytesWritten < 0)
-        throw std::runtime_error("Error writing to client " + std::to_string(clientFd) + ": " + strerror(errno));
-    pendingResponses.sent += bytesWritten;
-    return pendingResponses;
 }
 
 void Server::closeConnections()
@@ -450,7 +413,7 @@ std::unordered_map<int, ClientData> &Server::getClientDataMap()
     return _clientData;
 }
 
-PollManager& Server::getPollManager()
+PollManager &Server::getPollManager()
 {
     return _pollManager;
 }
@@ -458,20 +421,4 @@ PollManager& Server::getPollManager()
 std::unordered_map<int, int> &Server::getOpenFilesToClientMap()
 {
     return _openFilesToClientMap;
-}
-
-std::string Server::getHostFromSocketFd(int fd)
-{
-    auto sockPtrIt {_sockets.find(fd)};
-    if (sockPtrIt == _sockets.end())
-        return "";
-    return (sockPtrIt->second)->get_host();
-}
-
-std::string Server::getPortFromSocketFd(int fd)
-{
-    auto sockPtrIt {_sockets.find(fd)};
-    if (sockPtrIt == _sockets.end())
-        return "";
-    return (sockPtrIt->second)->get_port();
 }

@@ -1,4 +1,5 @@
 #include "POSTRequest.hpp"
+#include "Server.hpp"
 
 POSTRequest::POSTRequest(HTTPRequestData data, const LocationConfig* location_config) :
     HTTPRequest(data, location_config)

@@ -1,19 +1,19 @@
 #pragma once
 
-#include <fstream>
-#include <string>
-#include <vector>
-#include <stdexcept>
-#include <set>
 #include <chrono>
-#include <sstream>
-#include <iomanip>
-#include <filesystem>
-#include <iostream>
 #include <cmath>
-#include <fcntl.h>
-#include <unistd.h>
 #include <cstring>
+#include <fcntl.h>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <set>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <unistd.h>
+#include <vector>
 
 /* Trim the start and end of a string using a given charset (default whitespaces) */
 void trim(std::string &str, const std::string &charset = " \t\n\r\f\v");
@@ -28,34 +28,37 @@ std::vector<std::string> splitStrExceptQuotes(const std::string &str, const std:
 std::string iFStreamToString(std::ifstream &file_stream);
 
 /* Trim the outer spaces and then remove the outermost quotes */
-void trimOuterSpacesAndQuotes(std::string& str);
+void trimOuterSpacesAndQuotes(std::string &str);
 
 /* Checke if the first word of `str` is equal to `comparison` without regard to the first word being quoted */
-bool firstWordEquals(const std::string& str, const std::string& comparison, std::size_t* next_word_pos = nullptr);
+bool firstWordEquals(const std::string &str, const std::string &comparison, std::size_t *next_word_pos = nullptr);
 
 // Check if the string ends with a certain substring
-bool strEndsWith(const std::string& str, const std::string& suffix);
+bool strEndsWith(const std::string &str, const std::string &suffix);
+
+// Returns a pair of strings after spliting the parts before and after '?'
+std::pair<std::string, std::string> splitUriIntoPathAndQuery(const std::string& uri);
 
 /*Checks if a given string is a valid HTTP method.
 Assumes the input string is already in lowercase for case-insensitive comparison.
 @param str The string to check.
 @return true if the string is a valid HTTP method, false otherwise.*/
-bool isHttpMethod(const std::string& str);
+bool isHttpMethod(const std::string &str);
 
 // Check if an IP address is localhost, 0.0.0.0, or loopback
-bool isStandardAddress(const std::string& address);
+bool isStandardAddress(const std::string &address);
 
 // Get current system date and time in HTTP format
 std::string getCurrentGMTString();
 
 // Return the last modified time of a file in HTTP format
-std::string getLastModTimeHTTP(const std::filesystem::path& filePath);
+std::string getLastModTimeHTTP(const std::filesystem::path &filePath);
 
 // Read the entire file content into a string. Throw on error
 // std::string readFileToString(const std::string &filename);
 
 // Remove leading forward slash if it exists
-void removeLeadingSlash(std::string& str);
+void removeLeadingSlash(std::string &str);
 
 // Returns a human-readable string form of a site_t bytes value
 std::string bytesToHumanReadable(std::size_t size);

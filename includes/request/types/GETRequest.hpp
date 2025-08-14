@@ -11,7 +11,7 @@ public:
     GETRequest(GETRequest &&) = delete;
     ~GETRequest() override = default;
 
-    void generateResponse(Server* server, int clientFd) override;
+    void generateResponse(Server *server, int clientFd) override;
 
 private:
     void serveFile(const std::filesystem::path &filePath);

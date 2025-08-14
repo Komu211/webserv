@@ -1,10 +1,13 @@
 #include "ErrorRequest.hpp"
+#include "Server.hpp"
 
-ErrorRequest::ErrorRequest(HTTPRequestData data, int errorCode, const LocationConfig* location_config) :
-    HTTPRequest(data, location_config), _errorCode(errorCode)
-{}
+ErrorRequest::ErrorRequest(HTTPRequestData data, int errorCode, const LocationConfig *location_config)
+    : HTTPRequest(data, location_config)
+    , _errorCode(errorCode)
+{
+}
 
-void ErrorRequest::generateResponse(Server* server, int clientFd)
+void ErrorRequest::generateResponse(Server *server, int clientFd)
 {
     _server = server;
     _clientFd = clientFd;
@@ -22,7 +25,7 @@ void ErrorRequest::generateResponse(Server* server, int clientFd)
 void ErrorRequest::continuePrevious()
 {
     std::size_t num_ready{0};
-    for (auto& [fileFd, fileData] : _clientData->openFiles)
+    for (auto &[fileFd, fileData] : _clientData->openFiles)
     {
         if (fileData.finished)
         {

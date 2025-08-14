@@ -16,17 +16,16 @@ bool HTTPRequestParser::isValidRequest(const std::string &buffer)
         if (bodyStart + contentLength > buffer.size())
             return false;
     }
-    if (headers.find("transfer-encoding") != headers.end()
-        && headers["transfer-encoding"] == "chunked")
+    if (headers.find("transfer-encoding") != headers.end() && headers["transfer-encoding"] == "chunked")
         return buffer.find("0\r\n\r\n", bodyStart) != std::string::npos;
     return true;
 }
 
 HTTPRequestData HTTPRequestParser::parse(const std::string &requestStr)
 {
-    auto bodyStart = requestStr.find("\r\n\r\n");
+    auto               bodyStart = requestStr.find("\r\n\r\n");
     std::istringstream headerStream(requestStr.substr(0, bodyStart));
-    auto HTTPData = getRequestLine(headerStream);
+    auto               HTTPData = getRequestLine(headerStream);
     HTTPData.headers = parseHeaders(std::move(headerStream));
     bodyStart += 4; // Skip CRLF CRLF
     try
@@ -41,17 +40,17 @@ HTTPRequestData HTTPRequestParser::parse(const std::string &requestStr)
     return HTTPData;
 }
 
-std::size_t HTTPRequestParser::getResponseSizeFromCgiHeader(const std::string& cgiResponseStr)
+std::size_t HTTPRequestParser::getResponseSizeFromCgiHeader(const std::string &cgiResponseStr)
 {
     std::size_t size{0};
-    auto bodyStart = cgiResponseStr.find("\r\n\r\n");
+    auto        bodyStart = cgiResponseStr.find("\r\n\r\n");
     if (bodyStart != std::string::npos)
         size += 4;
     std::istringstream headerStream(cgiResponseStr.substr(0, bodyStart));
     size += headerStream.str().length();
-    [[maybe_unused]]auto HTTPData = getRequestLine(headerStream);
+    [[maybe_unused]] auto HTTPData = getRequestLine(headerStream);
     HTTPData.headers = parseHeaders(std::move(headerStream));
-    auto content_length_header {HTTPData.headers.find("content-length")};
+    auto content_length_header{HTTPData.headers.find("content-length")};
     if (content_length_header == HTTPData.headers.end())
         return std::string::npos;
     size += std::stoul(content_length_header->second);
@@ -79,8 +78,8 @@ std::string HTTPRequestParser::getBody(const std::unordered_map<std::string, std
 std::string HTTPRequestParser::parseChunkedBody(const std::string &bodyStr)
 {
     std::stringstream bodyStream(bodyStr);
-    std::string result;
-    std::string line;
+    std::string       result;
+    std::string       line;
 
     while (bodyStream.good())
     {
@@ -125,8 +124,8 @@ std::string HTTPRequestParser::parseChunkedBody(const std::string &bodyStr)
 HTTPRequestData HTTPRequestParser::getRequestLine(std::istringstream &headerStream)
 {
     HTTPRequestData HTTPData;
-    std::string line;
-    std::string method;
+    std::string     line;
+    std::string     method;
     std::getline(headerStream, line);
     if (line.back() == '\r')
         line.pop_back();
@@ -144,15 +143,16 @@ HTTPRequestData HTTPRequestParser::getRequestLine(std::istringstream &headerStre
     return HTTPData;
 }
 
-std::unordered_map<std::string, std::string> HTTPRequestParser::parseHeaders(
-    std::istringstream headerStream)
+std::unordered_map<std::string, std::string> HTTPRequestParser::parseHeaders(std::istringstream headerStream)
 {
     std::unordered_map<std::string, std::string> headers;
-    std::string line;
+    std::string                                  line;
 
-    while (std::getline(headerStream, line)) {
+    while (std::getline(headerStream, line))
+    {
         size_t colon_pos = line.find(':');
-        if (colon_pos != std::string::npos) {
+        if (colon_pos != std::string::npos)
+        {
             std::string key = line.substr(0, colon_pos);
             std::string value = line.substr(colon_pos + 1);
             trim(key);

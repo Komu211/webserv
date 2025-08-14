@@ -179,6 +179,20 @@ bool strEndsWith(const std::string& str, const std::string& suffix)
     return str.substr(str.length() - suffix.length()) == suffix;
 }
 
+std::pair<std::string, std::string> splitUriIntoPathAndQuery(const std::string& uri)
+{
+    std::string path{uri};
+    std::string queryStr{""};
+    std::size_t queryBegin{path.find_last_of('?')}; // technically this is 1 before query begin
+    if (queryBegin != std::string::npos)
+    {
+        if (queryBegin + 1 < path.length())
+            queryStr = path.substr(queryBegin + 1); // get part after '?'
+        path.erase(queryBegin);                     // erase from '?' to end of string
+    }
+    return {path, queryStr};
+}
+
 bool isHttpMethod(const std::string &str)
 {
     static const std::set<std::string> http_methods = {"get",     "post",  "delete", "put",    "head",

@@ -1,4 +1,5 @@
 #include "HTTPRequest.hpp"
+#include "Server.hpp"
 
 HTTPRequest::HTTPRequest(HTTPRequestData data, const LocationConfig *location_config)
     : _data(std::move(data))
@@ -40,16 +41,16 @@ void HTTPRequest::errorResponse(int errorCode)
         std::filesystem::path errorPagePath{_effective_config->getRoot()};
         errorPagePath /= error_file; // errorPagePath = root + error_file
         // ? or is errorPagePath = root + current location + error_file ?
-    
+
         openFileSetHeaders(errorPagePath);
-    
+
         return;
     }
     catch (const std::out_of_range &)
     {
         std::cerr << "Custom error page for " << errorCode << " not defined. Returning default error response body." << '\n';
     }
-    catch (const std::exception& e)
+    catch (const std::exception &e)
     {
         std::cerr << "Custom error page file for " << errorCode << " could not be opened: " << e.what() << ". Returning default error response body." << '\n';
     }
@@ -61,57 +62,6 @@ void HTTPRequest::errorResponse(int errorCode)
     _fullResponse = response.write();
     _responseState = READY;
 }
-
-void HTTPRequest::openFileSetHeaders(const std::filesystem::path &filePath)
-{
-    int fd = open(filePath.c_str(), O_RDONLY);
-    if (fd == -1)
-        throw std::runtime_error(strerror(errno));
-    setNonBlocking(fd);
-    OpenFile open_file;
-    open_file.fileType = OpenFile::READ;
-    open_file.size = std::filesystem::file_size(filePath);
-    _clientData->openFiles[fd] = open_file;
-    _server->getOpenFilesToClientMap()[fd] = _clientFd;
-    _server->getPollManager().addReadFileFd(fd);
-
-    std::unordered_map<std::string, std::string> headers;
-    headers["Content-Type"] = getMIMEtype(filePath.extension().string());
-    headers["Last-Modified"] = getLastModTimeHTTP(filePath);
-
-    _responseWithoutBody = std::make_unique<ResponseWriter>(200, headers, "");
-}
-
-// std::string HTTPRequest::errorResponse(int errorCode) const
-// {
-//     ResponseWriter response(errorCode, {{"Content-Type", "text/html"}}, getErrorResponseBody(errorCode));
-//     return response.write();
-// }
-
-// std::string HTTPRequest::getErrorResponseBody(int errorCode) const
-// {
-//     // The default minimal response body
-//     std::string result{getMinimalErrorDefaultBody(errorCode)};
-
-//     try
-//     {
-//         // Will throw if no error page is not defined
-//         std::string error_file{_effective_config->getErrorPagesMap().at(errorCode)};
-
-//         // Will throw if file could not be opened
-//         result = readFileToString(error_file);
-//     }
-//     catch (const std::out_of_range &)
-//     {
-//         std::cerr << "Custom error page for " << errorCode << " not defined. Returning default error response body." << '\n';
-//     }
-//     catch (const std::exception &)
-//     {
-//         std::cerr << "Custom error page file for " << errorCode << " could not be opened. Returning default error response body." << '\n';
-//     }
-
-//     return result;
-// }
 
 std::string HTTPRequest::getMinimalErrorDefaultBody(int errorCode) const
 {
@@ -151,6 +101,26 @@ std::string HTTPRequest::getMinimalErrorDefaultBody(int errorCode) const
                "<body><h1>500 Internal Server Error</h1>"
                "<p>The server encountered an internal error and was unable to complete your request.</p></body></html>";
     }
+}
+
+void HTTPRequest::openFileSetHeaders(const std::filesystem::path &filePath)
+{
+    int fd = open(filePath.c_str(), O_RDONLY);
+    if (fd == -1)
+        throw std::runtime_error(strerror(errno));
+    setNonBlocking(fd);
+    OpenFile open_file;
+    open_file.fileType = OpenFile::READ;
+    open_file.size = std::filesystem::file_size(filePath);
+    _clientData->openFiles[fd] = open_file;
+    _server->getOpenFilesToClientMap()[fd] = _clientFd;
+    _server->getPollManager().addReadFileFd(fd);
+
+    std::unordered_map<std::string, std::string> headers;
+    headers["Content-Type"] = getMIMEtype(filePath.extension().string());
+    headers["Last-Modified"] = getLastModTimeHTTP(filePath);
+
+    _responseWithoutBody = std::make_unique<ResponseWriter>(200, headers, "");
 }
 
 // Helper function for getDirectoryListingBody
@@ -355,17 +325,9 @@ std::unordered_map<std::string, std::string> HTTPRequest::createCGIenvironment(c
     envMap["REQUEST_URI"] = _data.uri;
     envMap["SCRIPT_FILENAME"] = filePathAbs.string();
 
-    std::string virtualScriptPath{_data.uri};
-    std::string queryStr{""};
-    std::size_t queryBegin{virtualScriptPath.find_last_of('?')}; // technically this is 1 before query begin
-    if (queryBegin != std::string::npos)
-    {
-        if (queryBegin + 1 < virtualScriptPath.length())
-            queryStr = virtualScriptPath.substr(queryBegin + 1); // get part after '?'
-        virtualScriptPath.erase(queryBegin);                     // erase from '?' to end of string
-    }
-    envMap["SCRIPT_NAME"] = virtualScriptPath; // TODO: this is URI. Can sometimes be directory
-    envMap["QUERY_STRING"] = queryStr;
+    std::pair<std::string, std::string> splitUri{splitUriIntoPathAndQuery(_data.uri)};
+    envMap["SCRIPT_NAME"] = splitUri.first;
+    envMap["QUERY_STRING"] = splitUri.second;
 
     if (_data.headers.find("content-type") != _data.headers.end())
         envMap["CONTENT_TYPE"] = _data.headers.at("content-type");
@@ -379,17 +341,20 @@ std::unordered_map<std::string, std::string> HTTPRequest::createCGIenvironment(c
     else
         envMap["SERVER_NAME"] = "";
 
-    envMap["REMOTE_ADDR"] = _server->getHostFromSocketFd(_clientFd);
-    envMap["SERVER_PORT"] = _server->getPortFromSocketFd(_clientFd);
+    if (_clientData)
+    {
+        envMap["REMOTE_ADDR"] = _clientData->hostName;
+        envMap["SERVER_PORT"] = _clientData->port;
+    }
 
     return envMap;
 }
 
-void HTTPRequest::cgiOutputToResponse(const std::string& cgi_output)
+void HTTPRequest::cgiOutputToResponse(const std::string &cgi_output)
 {
-    HTTPRequestData data {HTTPRequestParser::parse(cgi_output)};
-    auto status_header = data.headers.find("status");
-    int status_value{};
+    HTTPRequestData data{HTTPRequestParser::parse(cgi_output)};
+    auto            status_header = data.headers.find("status");
+    int             status_value{};
     if (status_header == data.headers.end())
         status_value = 200;
     else
@@ -436,13 +401,6 @@ void HTTPRequest::serveCGI(const std::filesystem::path &filePath, const std::str
         _clientData->openFiles[readFromCgiFd] = open_read_file;
         _server->getOpenFilesToClientMap()[readFromCgiFd] = _clientFd;
         _server->getPollManager().addReadFileFd(readFromCgiFd);
-
-
-        // subprocess.writeToChild(_data.body);                // ! blocking
-        // std::string cgi_output{subprocess.readFromChild()}; // ! blocking
-        // subprocess.waitChild();                             // uses WNOHANG
-
-        // return cgiOutputToResponse(cgi_output);
     }
     catch (const std::exception &e)
     {
@@ -461,8 +419,8 @@ bool HTTPRequest::normalizeAndValidateUnderRoot(const std::filesystem::path &can
     auto candStr = normCand.string();
 
     // Ensure trailing separator handling: either exact match, or next char is '/'
-    bool startsWith = candStr.compare(0, rootStr.size(), rootStr) == 0 &&
-                      (candStr.size() == rootStr.size() || candStr[rootStr.size()] == '/');
+    bool startsWith =
+        candStr.compare(0, rootStr.size(), rootStr) == 0 && (candStr.size() == rootStr.size() || candStr[rootStr.size()] == '/');
     if (!startsWith)
         return false;
 

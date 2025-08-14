@@ -187,12 +187,12 @@ void CGISubprocess::killSubprocess(int sig)
 //     return cgi_output;
 // }
 
-void CGISubprocess::waitChild()
-{
-    waitpid(_pid, &_status, WNOHANG);
-    if (WIFEXITED(_status) && WEXITSTATUS(_status) != 0)
-    {
-        // CGI script exited with an error
-        throw std::runtime_error("CGI script failed: " + std::string{strerror(errno)});
-    }
-}
+// void CGISubprocess::waitChild()
+// {
+//     waitpid(_pid, &_status, WNOHANG);
+//     if (WIFEXITED(_status) && WEXITSTATUS(_status) != 0)
+//     {
+//         // CGI script exited with an error
+//         throw std::runtime_error("CGI script failed: " + std::string{strerror(errno)});
+//     }
+// }

@@ -1,11 +1,12 @@
 #include "GETRequest.hpp"
+#include "Server.hpp"
 
 GETRequest::GETRequest(HTTPRequestData data, const LocationConfig *location_config)
     : HTTPRequest(data, location_config)
 {
 }
 
-void GETRequest::generateResponse(Server* server, int clientFd)
+void GETRequest::generateResponse(Server *server, int clientFd)
 {
     _server = server;
     _clientFd = clientFd;
@@ -32,7 +33,9 @@ void GETRequest::generateResponse(Server* server, int clientFd)
     }
 
     std::filesystem::path resourcePath{_effective_config->getRoot()};
-    resourcePath /= getURInoLeadingSlash(); // resourcePath = root + requested URI
+    std::string           uri{splitUriIntoPathAndQuery(_data.uri).first};
+    removeLeadingSlash(uri);
+    resourcePath /= uri; // resourcePath = root + requested URI
 
     // Prevent escaping root
     std::filesystem::path safePath;
@@ -73,7 +76,7 @@ void GETRequest::generateResponse(Server* server, int clientFd)
 
 void GETRequest::serveFile(const std::filesystem::path &filePath)
 {
-    for (const auto& [extension, interpreter] : _effective_config->getCGIHandlersMap())
+    for (const auto &[extension, interpreter] : _effective_config->getCGIHandlersMap())
     {
         if (filePath.extension().string() == extension)
             return serveCGI(filePath, interpreter);
@@ -84,12 +87,6 @@ void GETRequest::serveFile(const std::filesystem::path &filePath)
         openFileSetHeaders(filePath);
 
         return;
-
-        // Will throw on any read error
-        // std::string fileContents{readFileToString(filePath.string())};
-
-        // ResponseWriter response(200, headers, fileContents);
-        // return response.write();
     }
     catch (const std::exception &e)
     {
@@ -100,11 +97,10 @@ void GETRequest::serveFile(const std::filesystem::path &filePath)
     errorResponse(403);
 }
 
-
 void GETRequest::continuePrevious()
 {
     std::size_t num_ready{0};
-    for (auto& [fileFd, fileData] : _clientData->openFiles)
+    for (auto &[fileFd, fileData] : _clientData->openFiles)
     {
         if (fileData.finished)
         {
@@ -131,7 +127,7 @@ void GETRequest::continuePrevious()
             else if (fileData.fileType == OpenFile::WRITE)
             {
                 ++num_ready;
-                // ? nothing to do?
+                // nothing to do
             }
         }
     }

@@ -1,4 +1,5 @@
 #include "DELETERequest.hpp"
+#include "Server.hpp"
 
 DELETERequest::DELETERequest(HTTPRequestData data, const LocationConfig* location_config) :
     HTTPRequest(data, location_config)

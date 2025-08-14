@@ -1,6 +1,7 @@
 #pragma once
 
 #include "HTTPRequest.hpp"
+#include "HTTPRequestFactory.hpp"
 #include "HTTPRequestParser.hpp"
 #include "PollManager.hpp"
 #include "ServerConfig.hpp"
@@ -15,6 +16,7 @@
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #define BUFFER_SIZE 4096
@@ -22,12 +24,13 @@
 // Global volatile flag to signal shutdown
 extern volatile std::sig_atomic_t g_shutdownServer;
 
-// Forward declarations in case of double inclusions
+// Forward declarations in case of circular inclusions
 class GlobalConfig;
 class HTTPRequest;
 class HTTPRequestParser;
 class PollManager;
 class ServerConfig;
+class HTTPRequestFactory;
 class Socket;
 
 struct PendingResponse
@@ -96,8 +99,6 @@ public: // used by HTTPRequest
     std::unordered_map<int, ClientData> &getClientDataMap();
     std::unordered_map<int, int>        &getOpenFilesToClientMap();
     PollManager                         &getPollManager();
-    std::string                          getHostFromSocketFd(int fd);
-    std::string                          getPortFromSocketFd(int fd);
 
 public:
     Server() = delete;

@@ -8,7 +8,7 @@
 #include <sstream>
 #include <algorithm> /* std::tranform() */
 
-class HTTPRequestData;
+struct HTTPRequestData;
 class HTTPRequestParser
 {
 private:
