@@ -158,13 +158,13 @@
           <a href="/">
             <img src="/public/waving-hand-svgrepo-com.svg" width="64" height="64" alt="Home" />
           </a>
-          <h1>Upload to /upload_test (port 8070)</h1>
+          <h1>Upload to /upload_test</h1>
           <div class="stack">
             <div class="box section">
               <strong>Upload a file</strong>
               <form
                 class="row"
-                action="http://localhost:8070/upload_test"
+                action="/upload_test"
                 method="POST"
                 enctype="multipart/form-data"
                 target="upload_iframe"
@@ -183,7 +183,7 @@
               <strong>Upload text</strong>
               <form
                 class="row"
-                action="http://localhost:8070/upload_test"
+                action="/upload_test"
                 method="POST"
                 enctype="text/plain"
                 target="upload_iframe"

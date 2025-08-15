@@ -7,6 +7,7 @@
 #include "PollManager.hpp"
 #include "ResponseWriter.hpp"
 #include "utils.hpp"
+#include "MimeTypes.hpp"
 #include <fcntl.h>
 #include <filesystem>
 #include <iostream>
@@ -54,8 +55,6 @@ protected: // helper functions to use within public member functions of inherite
     std::string getMinimalErrorDefaultBody(int errorCode) const;
     // Create HTML directory listing of a given URI (it should be an existing directory)
     std::string getDirectoryListingBody(const std::filesystem::path &dirPath) const;
-    // Determine "Content-Type" header based on a given file extension
-    std::string getMIMEtype(const std::string &extension) const;
     // Redirection
     void        handleRedirection(const std::pair<int, std::string> &redirectInfo);
     // Handle CGI and return the full response to be sent to client

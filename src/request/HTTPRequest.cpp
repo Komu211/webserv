@@ -39,8 +39,8 @@ void HTTPRequest::errorResponse(int errorCode)
         std::string error_file{_effective_config->getErrorPagesMap().at(errorCode)};
 
         std::filesystem::path errorPagePath{_effective_config->getRoot()};
-        errorPagePath /= error_file; // errorPagePath = root + error_file
-        // ? or is errorPagePath = root + current location + error_file ?
+        errorPagePath /= getURInoLeadingSlash();
+        errorPagePath /= error_file; // errorPagePath = root + current location + error_file
 
         openFileSetHeaders(errorPagePath);
 
@@ -117,7 +117,7 @@ void HTTPRequest::openFileSetHeaders(const std::filesystem::path &filePath)
     _server->getPollManager().addReadFileFd(fd);
 
     std::unordered_map<std::string, std::string> headers;
-    headers["Content-Type"] = getMIMEtype(filePath.extension().string());
+    headers["Content-Type"] = MimeTypes::getMimeType(filePath.extension().string());
     headers["Last-Modified"] = getLastModTimeHTTP(filePath);
 
     _responseWithoutBody = std::make_unique<ResponseWriter>(200, headers, "");
@@ -283,36 +283,6 @@ void HTTPRequest::handleRedirection(const std::pair<int, std::string> &redirectI
 
     _fullResponse = response.write();
     _responseState = READY;
-}
-
-std::string HTTPRequest::getMIMEtype(const std::string &extension) const
-{
-    if (extension == ".html")
-        return "text/html";
-    else if (extension == ".htm")
-        return "text/html";
-    else if (extension == ".css")
-        return "text/css";
-    else if (extension == ".js")
-        return "application/javascript";
-    else if (extension == ".json")
-        return "application/json";
-    else if (extension == ".png")
-        return "image/png";
-    else if (extension == ".jpg")
-        return "image/jpg";
-    else if (extension == ".gif")
-        return "image/gif";
-    else if (extension == ".svg")
-        return "image/svg+xml";
-    else if (extension == ".pdf")
-        return "application/pdf";
-    else if (extension == ".txt")
-        return "text/plain";
-    else if (extension == "")
-        return "text/plain"; // for extensionless files
-    // ... more mappings can be added
-    return "application/octet-stream"; // for unknown extensions
 }
 
 std::unordered_map<std::string, std::string> HTTPRequest::createCGIenvironment(const std::filesystem::path &filePathAbs) const

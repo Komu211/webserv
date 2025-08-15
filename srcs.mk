@@ -8,6 +8,7 @@ SRCS		=	main.cpp \
 				Socket.cpp \
 				PollManager.cpp \
 				utils.cpp \
+				MimeTypes.cpp \
 				HTTPRequestFactory.cpp \
                 HTTPRequestParser.cpp \
 				HTTPRequest.cpp \
