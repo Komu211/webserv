@@ -145,25 +145,35 @@ void trimOuterSpacesAndQuotes(std::string &str)
 
 bool firstWordEquals(const std::string &str, const std::string &comparison, std::size_t *next_word_pos)
 {
-    if (str.compare(0, comparison.length(), comparison) == 0 && std::isspace(str.at(comparison.length())))
+    if (str.compare(0, comparison.length(), comparison) == 0)
     {
-        if (next_word_pos)
-            *next_word_pos = comparison.length() + 1;
+        if (str.length() > comparison.length())
+        {
+            if (next_word_pos)
+                *next_word_pos = (comparison.length() + 1 < str.length() ? comparison.length() + 1 : comparison.length());
+        }
         return true;
     }
 
     std::string singQuoted{"'" + comparison + "'"};
-    if (str.compare(0, singQuoted.length(), singQuoted) == 0 && std::isspace(str.at(singQuoted.length())))
+    if (str.compare(0, singQuoted.length(), singQuoted) == 0)
     {
-        if (next_word_pos)
-            *next_word_pos = singQuoted.length() + 1;
+        if (str.length() > comparison.length())
+        {
+            if (next_word_pos)
+                *next_word_pos = (singQuoted.length() + 1 < str.length() ? singQuoted.length() + 1 : singQuoted.length());
+        }
         return true;
     }
 
     std::string doubQuoted{"\"" + comparison + "\""};
-    if (str.compare(0, doubQuoted.length(), doubQuoted) == 0 && std::isspace(str.at(doubQuoted.length())))
+    if (str.compare(0, doubQuoted.length(), doubQuoted) == 0)
     {
-        *next_word_pos = doubQuoted.length() + 1;
+        if (str.length() > comparison.length())
+        {
+            if (next_word_pos)
+                *next_word_pos = (doubQuoted.length() + 1 < str.length() ? doubQuoted.length() + 1 : doubQuoted.length());
+        }
         return true;
     }
 

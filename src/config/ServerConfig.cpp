@@ -146,7 +146,7 @@ void ServerConfig::setConfigurationValue(std::string directive)
     std::string error_page{"error_page"};
     std::string index{"index"};
 
-    std::size_t nextWordPos;
+    std::size_t nextWordPos{};
 
     // Set listening host:port(s) for this server
     if (firstWordEquals(directive, listen, &nextWordPos))
