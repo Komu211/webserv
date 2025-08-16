@@ -20,18 +20,20 @@ public:
 
 private:
     // Single source of truth
-    static constexpr std::array<std::pair<std::string_view, std::string_view>, 11> _mime_data {{
+    static constexpr std::array<std::pair<std::string_view, std::string_view>, 13> _mime_data {{
+        { "text/html",              ".htm"        }, // getExtension("text/html") will return .html, not .htm
         { "text/html",              ".html"       },
-        { "text/html",              ".css"        },
-        { "text/plain",             ".txt"        },
-        { "application/javascript", ".javascript" },
+        { "text/css",               ".css"        },
+        { "application/javascript", ".js"         },
         { "application/json",       ".json"       },
         { "application/pdf",        ".pdf"        },
         { "image/png",              ".png"        },
         { "image/gif",              ".gif"        },
         { "image/svg+xml",          ".svg"        },
-        { "image/jpeg",             ".jpg"        },
-        { "text/plain",             ""            } // for extensionless files
+        { "image/jpeg",             ".jpg"        }, // getExtension("image/jpeg") will return .jpeg, not .jpg
+        { "image/jpeg",             ".jpeg"       },
+        { "text/plain",             ""            }, // for extensionless files (getExtension("text/plain") will return .txt, not "")
+        { "text/plain",             ".txt"        }
         // ... more mappings can be added
     }};
 
