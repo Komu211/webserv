@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <algorithm> /* std::transform(), std::replace() */
 
 // Forward declarations
 class Server;

@@ -317,6 +317,19 @@ std::unordered_map<std::string, std::string> HTTPRequest::createCGIenvironment(c
         envMap["SERVER_PORT"] = _clientData->port;
     }
 
+    // Add all the other headers from the request
+    for (const auto &[key, value] : _data.headers)
+    {
+        if (key != "content-type" && key != "content-length") // skip because already processed above
+        {
+            std::string envKey{key};
+            std::transform(envKey.begin(), envKey.end(), envKey.begin(), ::toupper);
+            std::replace(envKey.begin(), envKey.end(), '-', '_');
+            envKey.insert(0, "HTTP_");
+            envMap[envKey] = value;
+        }
+    }
+
     return envMap;
 }
 
