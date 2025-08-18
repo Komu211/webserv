@@ -68,90 +68,105 @@ void POSTRequest::generateResponse(Server* server, int clientFd)
 
     std::cout << "Not a CGI request, handling as file upload" << std::endl;
     
+    auto foundHeaders = _data.headers.find("content-type");
+    if (foundHeaders == _data.headers.end())
+        return errorResponse(400); // Missing Content-Type header
+    
+    std::string contentType = foundHeaders->second;
+    std::transform(contentType.begin(), contentType.end(), contentType.begin(), ::tolower);
+    
+    if (contentType.find("multipart/form-data") != std::string::npos)
+        return handleMultipart();
+    else if (contentType == "application/x-www-form-urlencoded")
+        return handleUrlEncoded();
+    else
+    return errorResponse(415); // Unsupported Media Type 
+    
+    
     // Check if upload store is configured
-    if (_effective_config->getUploadStore().empty())
-        return errorResponse(501); 
+//    if (_effective_config->getUploadStore().empty())
+//        return errorResponse(501); 
 
-    // Resolve upload directory
-    std::filesystem::path uploadDir{_effective_config->getUploadStore()};
-    if (uploadDir.is_relative())
-        uploadDir = std::filesystem::path(_effective_config->getRoot()) / uploadDir;
+//    // Resolve upload directory
+//    std::filesystem::path uploadDir{_effective_config->getUploadStore()};
+//    if (uploadDir.is_relative())
+//        uploadDir = std::filesystem::path(_effective_config->getRoot()) / uploadDir;
 
-    // Prevent escaping root
-    std::filesystem::path safeUploadDir;
-    if (!normalizeAndValidateUnderRoot(uploadDir, safeUploadDir))
-        return errorResponse(403);
+//    // Prevent escaping root
+//    std::filesystem::path safeUploadDir;
+//    if (!normalizeAndValidateUnderRoot(uploadDir, safeUploadDir))
+//        return errorResponse(403);
 
-    // Ensure directory exists
-    std::error_code ec;
-    if (!std::filesystem::exists(safeUploadDir))
-    {
-        std::filesystem::create_directories(safeUploadDir, ec);
-        if (ec)
-            return errorResponse(500);
-    }
+//    // Ensure directory exists
+//    std::error_code ec;
+//    if (!std::filesystem::exists(safeUploadDir))
+//    {
+//        std::filesystem::create_directories(safeUploadDir, ec);
+//        if (ec)
+//            return errorResponse(500);
+//    }
 
-    // Determine filename (use last path segment)
-    // TODO: sanitize filename
-    std::string uriPathStr = getURInoLeadingSlash();
-    std::string filenameCandidate = std::filesystem::path(uriPathStr).filename().string();
-    if (filenameCandidate.empty() || filenameCandidate == "." || filenameCandidate == "..")
-    {
-        // generate filename with timestamp
-        auto now = std::chrono::system_clock::now();
-        auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-        filenameCandidate = std::string("upload_") + std::to_string(epoch) + ".bin";
-    }
+//    // Determine filename (use last path segment)
+//    // TODO: sanitize filename
+//    std::string uriPathStr = getURInoLeadingSlash();
+//    std::string filenameCandidate = std::filesystem::path(uriPathStr).filename().string();
+//    if (filenameCandidate.empty() || filenameCandidate == "." || filenameCandidate == "..")
+//    {
+//        // generate filename with timestamp
+//        auto now = std::chrono::system_clock::now();
+//        auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+//        filenameCandidate = std::string("upload_") + std::to_string(epoch) + ".bin";
+//    }
 
-    std::filesystem::path targetPath = safeUploadDir / filenameCandidate;
+//    std::filesystem::path targetPath = safeUploadDir / filenameCandidate;
 
-    // If file exists, append number to avoid overwrite
-    if (std::filesystem::exists(targetPath))
-    {
-        std::string stem = targetPath.stem().string();
-        std::string ext = targetPath.extension().string();
-        for (int i = 1; i < 10000; ++i)
-        {
-            std::filesystem::path candidate = safeUploadDir / (stem + "_" + std::to_string(i) + ext);
-            if (!std::filesystem::exists(candidate))
-            {
-                targetPath = candidate;
-                break;
-            }
-        }
-    }
+//    // If file exists, append number to avoid overwrite
+//    if (std::filesystem::exists(targetPath))
+//    {
+//        std::string stem = targetPath.stem().string();
+//        std::string ext = targetPath.extension().string();
+//        for (int i = 1; i < 10000; ++i)
+//        {
+//            std::filesystem::path candidate = safeUploadDir / (stem + "_" + std::to_string(i) + ext);
+//            if (!std::filesystem::exists(candidate))
+//            {
+//                targetPath = candidate;
+//                break;
+//            }
+//        }
+//    }
 
-    // Stream body to disk in chunks
-    // TODO: add to poll manager, set state, and come back to write later
-    try
-    {
-        std::ofstream out(targetPath, std::ios::binary);
-        if (!out.is_open())
-            return errorResponse(500);
+//    // Stream body to disk in chunks
+//    // TODO: add to poll manager, set state, and come back to write later
+//    try
+//    {
+//        std::ofstream out(targetPath, std::ios::binary);
+//        if (!out.is_open())
+//            return errorResponse(500);
 
-        const std::string &bodyRef = _data.body;
-        const std::size_t chunkSize = 1 << 15; // 32KB
-        for (std::size_t offset = 0; offset < bodyRef.size(); offset += chunkSize)
-        {
-            std::size_t toWrite = std::min(chunkSize, bodyRef.size() - offset);
-            out.write(bodyRef.data() + static_cast<std::streamsize>(offset), static_cast<std::streamsize>(toWrite));
-            if (!out)
-                return errorResponse(500);
-        }
-        out.close();
-    }
-    catch (const std::exception &)
-    {
-        return errorResponse(500);
-    }
+//        const std::string &bodyRef = _data.body;
+//        const std::size_t chunkSize = 1 << 15; // 32KB
+//        for (std::size_t offset = 0; offset < bodyRef.size(); offset += chunkSize)
+//        {
+//            std::size_t toWrite = std::min(chunkSize, bodyRef.size() - offset);
+//            out.write(bodyRef.data() + static_cast<std::streamsize>(offset), static_cast<std::streamsize>(toWrite));
+//            if (!out)
+//                return errorResponse(500);
+//        }
+//        out.close();
+//    }
+//    catch (const std::exception &)
+//    {
+//        return errorResponse(500);
+//    }
 
-    // Success response
-    // TODO: move to continuePrevious()
-    std::ostringstream body;
-    body << "Uploaded '" << targetPath.filename().string() << "' (" << _data.body.size() << ") bytes\n";
-    ResponseWriter response(201, {{"Content-Type", "text/plain"}}, body.str());
-    _fullResponse = response.write();
-    _responseState = READY;
+//    // Success response
+//    // TODO: move to continuePrevious()
+//    std::ostringstream body;
+//    body << "Uploaded '" << targetPath.filename().string() << "' (" << _data.body.size() << ") bytes\n";
+//    ResponseWriter response(201, {{"Content-Type", "text/plain"}}, body.str());
+//    _fullResponse = response.write();
+//    _responseState = READY;
 }
 
 void POSTRequest::continuePrevious()
