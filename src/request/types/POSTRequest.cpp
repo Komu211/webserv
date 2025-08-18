@@ -32,6 +32,46 @@ void POSTRequest::generateResponse(Server* server, int clientFd)
     if (_data.body.size() > maxAllowedBody)
         return errorResponse(413);
 
+    // Check if this is a CGI request first
+    std::filesystem::path cgiTargetPath{_effective_config->getRoot()};
+    cgiTargetPath /= getURInoLeadingSlash();
+    
+    // Normalize and validate the path
+    std::filesystem::path safePath;
+    if (!normalizeAndValidateUnderRoot(cgiTargetPath, safePath))
+        return errorResponse(403);
+    
+    // If path exists and is a directory, check for index files
+    std::filesystem::path finalPath = safePath;
+    if (std::filesystem::exists(safePath) && std::filesystem::is_directory(safePath))
+    {
+        for (const auto &file : _effective_config->getIndexFilesVec())
+        {
+            std::filesystem::path indexPath = safePath / file;
+            if (std::filesystem::exists(indexPath))
+            {
+                finalPath = indexPath;
+                break;
+            }
+        }
+    }
+    
+    // Check if the final resolved path matches any CGI handler
+    for (const auto &[extension, interpreter] : _effective_config->getCGIHandlersMap())
+    {
+        if (finalPath.extension().string() == extension)
+        {
+            std::cout << "CGI detected for: " << finalPath << std::endl;
+            return serveCGI(finalPath, interpreter);
+        }
+    }
+
+    std::cout << "Not a CGI request, handling as file upload" << std::endl;
+    
+    // Check if upload store is configured
+    if (_effective_config->getUploadStore().empty())
+        return errorResponse(501); 
+
     // Resolve upload directory
     std::filesystem::path uploadDir{_effective_config->getUploadStore()};
     if (uploadDir.is_relative())
