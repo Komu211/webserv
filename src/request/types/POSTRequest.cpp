@@ -98,7 +98,6 @@ void POSTRequest::handleMultipart()
         return handleFileUpload(fileParts);
     }
     else {
-        handleFormFields(parts);
         _responseState = READY;
     }
 }
@@ -319,11 +318,6 @@ void POSTRequest::handleFileUpload(const std::vector<MultipartPart*>& fileParts)
 
         std::cout << "File upload initiated for: " << targetPath.filename() << " (" << openFile.size << " bytes)" << std::endl;
     }
-}
-
-void POSTRequest::handleFormFields(const std::vector<MultipartPart>& parts) {
-    // TODO: Implement logic
-    (void)parts;
 }
 
 

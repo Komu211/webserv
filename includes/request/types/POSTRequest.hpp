@@ -24,9 +24,7 @@ public:
     };
     
     void handleMultipart();
-    void handleUrlEncoded();
     void handleFileUpload(const std::vector<MultipartPart*>& fileParts);
-    void handleFormFields(const std::vector<MultipartPart> &parts);
     std::vector<MultipartPart> parseMultipartFormData();
     MultipartPart parsePartContent(const std::string& partContent);
     std::vector<MultipartPart*> findAllUploadFileParts(const std::vector<MultipartPart> &parts);
