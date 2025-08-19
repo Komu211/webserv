@@ -127,31 +127,8 @@ void GETRequest::continuePrevious()
     if (num_ready == _clientData->openFiles.size())
     {
         if (_CgiStartTime.has_value()) // A CGI process exists
-        {
-            if (_CgiSubprocess->childHasExited())
-            {
-                if (_CgiSubprocess->getChildExitStatus() == 0)
-                    _responseState = READY;
-                else
-                {
-                    std::cout << "Child exited with non-zero status code" << '\n';
-                    return errorResponse(500); // child exited with non-zero status code
-                }
-            }
-            else // child has not exited yet
-            {
-                auto elapsed {std::chrono::steady_clock::now() - _CgiStartTime.value()};
-                if (elapsed >= std::chrono::seconds(CGI_TIMEOUT)) // CGI process going on for too long
-                {
-                    std::cout << "CGI process has continued for longer than the specified timeout. Killing it." << '\n';
-                    _CgiSubprocess->killSubprocess();
-                    return errorResponse(500);
-                }
-            }
-        }
+            return checkCGIstatus();
         else // No CGI process exists
-        {
             _responseState = READY;
-        }
     }
 }

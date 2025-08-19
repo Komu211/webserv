@@ -69,6 +69,7 @@ protected: // helper functions to use within public member functions of inherite
     void        serveCGI(const std::filesystem::path &filePath, const std::string &interpreter);
     // Create environment variables for CGI subprocess
     [[nodiscard]] std::unordered_map<std::string, std::string> createCGIenvironment(const std::filesystem::path &filePath) const;
+    // Generate a response for the given status code (either reading from configured error file or default minimal response)
     void errorResponse(int errorCode);
     // bool errorResponseRequiresReadingFile(int errorCode);
     // Opens an fd for file, adds it to poll manager, initalizes _responseWithoutBody, throws on open error
@@ -77,6 +78,8 @@ protected: // helper functions to use within public member functions of inherite
     void cgiOutputToResponse(const std::string &cgi_output);
     // Normalize path and validate it is under root
     bool normalizeAndValidateUnderRoot(const std::filesystem::path &candidate, std::filesystem::path &outNormalized) const;
+    // Check if CGI has exited, and with what status code. Set `_responseState` accordingly
+    void checkCGIstatus(); 
 
     virtual void continuePrevious() = 0;
 

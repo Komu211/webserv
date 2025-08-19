@@ -346,9 +346,11 @@ void POSTRequest::continuePrevious()
             if (fileData.fileType == OpenFile::READ)
             {
                 ++num_ready;
-                if (_responseWithoutBody)
+                if (fileData.isCGI && _CgiSubprocess != nullptr)
+                    cgiOutputToResponse(fileData.content);
+                else if (_responseWithoutBody != nullptr)
                 {
-                    // TODO: if is CGI response, convert to full response
+                    // non-CGI read
                     _responseWithoutBody->setBody(fileData.content);
                     _fullResponse = _responseWithoutBody->write();
                 }
@@ -371,7 +373,10 @@ void POSTRequest::continuePrevious()
             ResponseWriter response(201, {{"Content-Type", "text/plain"}}, responseMessage);
             _fullResponse = response.write();
         }
-        _responseState = READY;
+        if (_CgiStartTime.has_value()) // A CGI process exists
+            return checkCGIstatus();
+        else // No CGI process exists
+            _responseState = READY;
     }
 }
 

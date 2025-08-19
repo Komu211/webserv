@@ -5,7 +5,7 @@ DELETERequest::DELETERequest(HTTPRequestData data, const LocationConfig* locatio
     HTTPRequest(data, location_config)
 {}
 
-// ? not sure if we need to handle DELETE in CGI
+// TODO: we need to handle DELETE in CGI
 void DELETERequest::generateResponse(Server* server, int clientFd)
 {
     _server = server;
@@ -44,6 +44,8 @@ void DELETERequest::generateResponse(Server* server, int clientFd)
     if (std::filesystem::is_directory(safePath))
         return errorResponse(403);
 
+    // TODO: DELETE should not be able to delete index files and websites files! Only allow DELETE inside upload directory
+
     // Remove the file
     std::error_code ec;
     bool removed = std::filesystem::remove(safePath, ec);
@@ -68,18 +70,27 @@ void DELETERequest::continuePrevious()
             if (fileData.fileType == OpenFile::READ)
             {
                 ++num_ready;
-                if (_responseWithoutBody)
+                if (fileData.isCGI && _CgiSubprocess != nullptr)
+                    cgiOutputToResponse(fileData.content);
+                else if (_responseWithoutBody != nullptr)
                 {
-                    // ? not sure if there is something to do here
+                    // non-CGI read
+                    _responseWithoutBody->setBody(fileData.content);
+                    _fullResponse = _responseWithoutBody->write();
                 }
             }
             else if (fileData.fileType == OpenFile::WRITE)
             {
                 ++num_ready;
-                // ? not sure if there is something to do here
+                // nothing to do
             }
         }
     }
     if (num_ready == _clientData->openFiles.size())
-        _responseState = READY;
+    {
+        if (_CgiStartTime.has_value()) // A CGI process exists
+            return checkCGIstatus();
+        else // No CGI process exists
+            _responseState = READY;
+    }
 }

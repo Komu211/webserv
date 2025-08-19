@@ -34,7 +34,7 @@ void ErrorRequest::continuePrevious()
                 ++num_ready;
                 if (_responseWithoutBody)
                 {
-                    // ? if is CGI response, convert to full response
+                    // no CGI here
                     _responseWithoutBody->setBody(fileData.content);
                     _fullResponse = _responseWithoutBody->write();
                 }
@@ -42,7 +42,7 @@ void ErrorRequest::continuePrevious()
             else if (fileData.fileType == OpenFile::WRITE)
             {
                 ++num_ready;
-                // ? not sure if there is something to do here
+                // nothing to do. never writes anyway
             }
         }
     }
