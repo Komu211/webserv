@@ -335,6 +335,13 @@ std::unordered_map<std::string, std::string> HTTPRequest::createCGIenvironment(c
 
 void HTTPRequest::cgiOutputToResponse(const std::string &cgi_output)
 {
+    // recycling isValidRequest to check if CGI response is valid
+    if (!HTTPRequestParser::isValidRequest(cgi_output))
+    {
+        std::cout << "CGI returned invalid response" << '\n';
+        return errorResponse(500);
+    }
+
     HTTPRequestData data{HTTPRequestParser::parse(cgi_output)};
     auto            status_header = data.headers.find("status");
     int             status_value{};
@@ -348,7 +355,7 @@ void HTTPRequest::cgiOutputToResponse(const std::string &cgi_output)
     data.headers.erase("status");
     ResponseWriter response(status_value, data.headers, data.body);
     _fullResponse = response.write();
-    _responseState = READY;
+    // _responseState = READY; // Set after child exits
 }
 
 void HTTPRequest::serveCGI(const std::filesystem::path &filePath, const std::string &interpreter)
@@ -384,6 +391,9 @@ void HTTPRequest::serveCGI(const std::filesystem::path &filePath, const std::str
         _clientData->openFiles[readFromCgiFd] = open_read_file;
         _server->getOpenFilesToClientMap()[readFromCgiFd] = _clientFd;
         _server->getPollManager().addReadFileFd(readFromCgiFd);
+
+        // For timeout
+        _CgiStartTime = std::chrono::steady_clock::now();
     }
     catch (const std::exception &e)
     {

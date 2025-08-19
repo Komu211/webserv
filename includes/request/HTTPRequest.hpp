@@ -19,6 +19,10 @@
 #include <unordered_set>
 #include <vector>
 #include <algorithm> /* std::transform(), std::replace() */
+#include <optional>
+#include <chrono>
+
+#define CGI_TIMEOUT 3 // seconds
 
 // Forward declarations
 class Server;
@@ -48,6 +52,9 @@ protected:
     Server                         *_server;
     int                             _clientFd;
     ClientData                     *_clientData;
+
+    // For CGI timeout
+    std::optional<std::chrono::time_point<std::chrono::steady_clock>> _CgiStartTime{std::nullopt};
 
 protected: // helper functions to use within public member functions of inherited classes
     // Remove leading slash from URI so std::filesystem doesn't think it refers to root directory

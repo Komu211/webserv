@@ -26,6 +26,7 @@ public:
     void createSubprocess(const std::filesystem::path &filePathAbs, const std::string &interpreter);
     int  getWritePipeToCGI();
     int  getReadPipeFromCGI();
+    bool childHasExited();
     bool childExitedSuccessfully();
     int  getChildExitStatus();
     void killSubprocess(int sig = SIGTERM);

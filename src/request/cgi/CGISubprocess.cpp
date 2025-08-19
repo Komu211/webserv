@@ -137,6 +137,22 @@ int CGISubprocess::getReadPipeFromCGI()
     return _pipe_from_cgi[0];
 }
 
+bool CGISubprocess::childHasExited()
+{
+    if (!_subprocessStarted)
+        return true;
+
+    pid_t result = waitpid(_pid, &_status, WNOHANG);
+
+    // child is still running if waitpid returned 0
+    if (result == 0)
+        return false;
+    
+    // waitpid either returned pid of child (meaning exited)
+    // or returned -1 in case of error or no such process
+    return true;
+}
+
 bool CGISubprocess::childExitedSuccessfully()
 {
     if (!_subprocessStarted)
