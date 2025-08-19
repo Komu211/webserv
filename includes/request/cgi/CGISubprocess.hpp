@@ -24,12 +24,17 @@ public:
 
     void setEnvironment(const std::unordered_map<std::string, std::string> &envMap);
     void createSubprocess(const std::filesystem::path &filePathAbs, const std::string &interpreter);
-    int  getWritePipeToCGI();
-    int  getReadPipeFromCGI();
+
+    // Closing this pipe becomes the caller's responsibility!
+    int getWritePipeToCGI();
+    // Closing this pipe becomes the caller's responsibility!
+    int getReadPipeFromCGI();
+
     bool childHasExited();
     bool childExitedSuccessfully();
     int  getChildExitStatus();
     void killSubprocess(int sig = SIGTERM);
+    void closeAllOpenFiles();
 
     // void        writeToChild(const std::string &body);
     // std::string readFromChild();

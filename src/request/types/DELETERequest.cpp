@@ -1,12 +1,13 @@
 #include "DELETERequest.hpp"
 #include "Server.hpp"
 
-DELETERequest::DELETERequest(HTTPRequestData data, const LocationConfig* location_config) :
-    HTTPRequest(data, location_config)
-{}
+DELETERequest::DELETERequest(HTTPRequestData data, const LocationConfig *location_config)
+    : HTTPRequest(data, location_config)
+{
+}
 
 // TODO: we need to handle DELETE in CGI
-void DELETERequest::generateResponse(Server* server, int clientFd)
+void DELETERequest::generateResponse(Server *server, int clientFd)
 {
     _server = server;
     _clientFd = clientFd;
@@ -72,7 +73,7 @@ void DELETERequest::generateResponse(Server* server, int clientFd)
 
     // Remove the file
     std::error_code ec;
-    bool removed = std::filesystem::remove(safePath, ec);
+    bool            removed = std::filesystem::remove(safePath, ec);
     if (ec)
         return errorResponse(500);
 
@@ -87,7 +88,7 @@ void DELETERequest::generateResponse(Server* server, int clientFd)
 void DELETERequest::continuePrevious()
 {
     std::size_t num_ready{0};
-    for (auto& [fileFd, fileData] : _clientData->openFiles)
+    for (auto &[fileFd, fileData] : _clientData->openFiles)
     {
         if (fileData.finished)
         {

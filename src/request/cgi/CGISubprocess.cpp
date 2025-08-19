@@ -20,15 +20,32 @@ CGISubprocess::CGISubprocess()
 
 CGISubprocess::~CGISubprocess()
 {
-    if (_pipe_to_cgi[0] != -1)
-        close(_pipe_to_cgi[0]);
-    if (_pipe_to_cgi[1] != -1)
-        close(_pipe_to_cgi[1]);
-    if (_pipe_from_cgi[0] != -1)
-        close(_pipe_from_cgi[0]);
-    if (_pipe_from_cgi[1] != -1)
-        close(_pipe_from_cgi[1]);
+    closeAllOpenFiles();
     killSubprocess();
+}
+
+void CGISubprocess::closeAllOpenFiles()
+{
+    if (_pipe_to_cgi[0] != -1)
+    {
+        close(_pipe_to_cgi[0]);
+        _pipe_to_cgi[0] = -1;
+    }
+    if (_pipe_to_cgi[1] != -1)
+    {
+        close(_pipe_to_cgi[1]);
+        _pipe_to_cgi[1] = -1;
+    }
+    if (_pipe_from_cgi[0] != -1)
+    {
+        close(_pipe_from_cgi[0]);
+        _pipe_from_cgi[0] = -1;
+    }
+    if (_pipe_from_cgi[1] != -1)
+    {
+        close(_pipe_from_cgi[1]);
+        _pipe_from_cgi[1] = -1;
+    }
 }
 
 // void CGISubprocess::setNonBlocking(int fd)
@@ -129,12 +146,16 @@ void CGISubprocess::redirectPipesChild()
 
 int CGISubprocess::getWritePipeToCGI()
 {
-    return _pipe_to_cgi[1];
+    auto return_val{_pipe_to_cgi[1]};
+    _pipe_to_cgi[1] = -1;
+    return return_val;
 }
 
 int CGISubprocess::getReadPipeFromCGI()
 {
-    return _pipe_from_cgi[0];
+    auto return_val{_pipe_from_cgi[0]};
+    _pipe_from_cgi[0] = -1;
+    return return_val;
 }
 
 bool CGISubprocess::childHasExited()
@@ -147,7 +168,7 @@ bool CGISubprocess::childHasExited()
     // child is still running if waitpid returned 0
     if (result == 0)
         return false;
-    
+
     // waitpid either returned pid of child (meaning exited)
     // or returned -1 in case of error or no such process
     return true;

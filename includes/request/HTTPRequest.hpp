@@ -4,23 +4,23 @@
 #include "HTTPRequestData.hpp"
 #include "HTTPRequestParser.hpp"
 #include "LocationConfig.hpp"
+#include "MimeTypes.hpp"
 #include "PollManager.hpp"
 #include "ResponseWriter.hpp"
 #include "utils.hpp"
-#include "MimeTypes.hpp"
+#include <algorithm> /* std::transform(), std::replace() */
+#include <chrono>
 #include <fcntl.h>
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <algorithm> /* std::transform(), std::replace() */
-#include <optional>
-#include <chrono>
 
 #define CGI_TIMEOUT 3 // seconds
 
@@ -79,7 +79,7 @@ protected: // helper functions to use within public member functions of inherite
     // Normalize path and validate it is under root
     bool normalizeAndValidateUnderRoot(const std::filesystem::path &candidate, std::filesystem::path &outNormalized) const;
     // Check if CGI has exited, and with what status code. Set `_responseState` accordingly
-    void checkCGIstatus(); 
+    void checkCGIstatus();
 
     virtual void continuePrevious() = 0;
 

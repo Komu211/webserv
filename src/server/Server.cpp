@@ -3,7 +3,6 @@
 #include "HTTPRequest.hpp"
 #include "HTTPRequestFactory.hpp"
 
-
 Server::Server(std::string configFileName)
     : _global_config{std::move(configFileName)} // Initiate parsing of the config file
 {
@@ -164,7 +163,7 @@ void Server::readFromClients()
 
                 const LocationConfig *location_config = findLocationConfig(data.uri, server_config);
 
-                std::cout << "Using ServerConfig: " << (server_config ? "found" : "not found") << ", LocationConfig: " << (location_config ? "found" : "not found") << std::endl;
+                // std::cout << "Using ServerConfig: " << (server_config ? "found" : "not found") << ", LocationConfig: " << (location_config ? "found" : "not found") << std::endl;
                 _clientData[clientFd].parsedRequest = HTTPRequestFactory::createRequest(data, location_config);
                 _pollManager.updateEvents(clientFd, POLLOUT);
                 _clientData[clientFd].partialRequest.clear();
