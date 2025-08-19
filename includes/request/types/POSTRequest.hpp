@@ -18,8 +18,11 @@ public:
     struct MultipartPart {
         std::string contentDisposition;
         std::string contentType;
+        std::string name;
+        std::string filename;
         std::string content;
     };
+    
     
     std::string _filename;
 
@@ -29,6 +32,7 @@ public:
     void handleFileUpload();
     void handleFormFields(const std::vector<MultipartPart> &parts);
     std::vector<MultipartPart> parseMultipartFormData();
+    MultipartPart parsePartContent(const std::string& partContent);
     MultipartPart* findUploadFilePart(const std::vector<MultipartPart> &parts);
     void extractFileInfo(MultipartPart &part);
 
