@@ -55,7 +55,7 @@ private:
     std::map<std::string, std::string> _cgi_handlers_map{};
 
     // Limits allowed HTTP methods inside a location
-    std::set<std::string> _limit_except{};
+    std::set<std::string> _limit_except{"get", "post"};
 
     // Location to save uploads on the server
     std::string _upload_store{""};

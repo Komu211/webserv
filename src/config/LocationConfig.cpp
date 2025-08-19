@@ -350,6 +350,9 @@ void LocationConfig::setLimitExcept(std::string directive)
     if (_seen_limit_except)
         throw std::runtime_error("Config file syntax error: 'limit_except' directive is duplicate: " + directive);
 
+    // clear the default values for this location
+    _limit_except.clear();
+
     trim(directive, ";");
 
     std::vector<std::string> args{splitStrExceptQuotes(directive)};
@@ -363,7 +366,7 @@ void LocationConfig::setLimitExcept(std::string directive)
         std::transform(elem.begin(), elem.end(), elem.begin(), [](unsigned char c) { return std::tolower(c); });
 
         // check if HTTP method is valid
-        if (!isHttpMethod(elem)) // * Currently possible to allow methods other than GET, POST, and DELETE
+        if (elem != "get" && elem != "post" && elem != "delete")
             throw std::runtime_error("Config file syntax error: 'limit_except' directive invalid method: " + elem);
 
         _limit_except.insert(elem);

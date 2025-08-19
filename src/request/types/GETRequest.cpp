@@ -19,8 +19,7 @@ void GETRequest::generateResponse(Server *server, int clientFd)
     _responseState = IN_PROGRESS;
 
     // Check if GET requests for this URI are allowed
-    if (!_effective_config->getLimitExcept().empty() &&
-        _effective_config->getLimitExcept().find("get") == _effective_config->getLimitExcept().end())
+    if (_effective_config->getLimitExcept().find("get") == _effective_config->getLimitExcept().end())
     {
         // Method not allowed
         return errorResponse(405);

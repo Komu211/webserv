@@ -18,8 +18,7 @@ void POSTRequest::generateResponse(Server* server, int clientFd)
     _responseState = IN_PROGRESS;
 
     // Check POST method allowed
-    if (!_effective_config->getLimitExcept().empty() &&
-        _effective_config->getLimitExcept().find("post") == _effective_config->getLimitExcept().end())
+    if (_effective_config->getLimitExcept().find("post") == _effective_config->getLimitExcept().end())
     {
         return errorResponse(405);
     }
@@ -34,7 +33,7 @@ void POSTRequest::generateResponse(Server* server, int clientFd)
 
     // Check if this is a CGI request first
     std::filesystem::path cgiTargetPath{_effective_config->getRoot()};
-    cgiTargetPath /= getURInoLeadingSlash();
+    cgiTargetPath /= splitUriIntoPathAndQuery(getURInoLeadingSlash()).first; // get rid of query string
     
     // Normalize and validate the path
     std::filesystem::path safePath;

@@ -19,8 +19,8 @@ void DELETERequest::generateResponse(Server* server, int clientFd)
     _responseState = IN_PROGRESS;
 
     // Check method allowed
-    if (!_effective_config->getLimitExcept().empty() &&
-        _effective_config->getLimitExcept().find("delete") == _effective_config->getLimitExcept().end())
+    // By default, DELETE is not allowed in any location. It must be be specified in config file
+    if (_effective_config->getLimitExcept().find("delete") == _effective_config->getLimitExcept().end())
     {
         return errorResponse(405);
     }
@@ -31,7 +31,7 @@ void DELETERequest::generateResponse(Server* server, int clientFd)
 
     // Resolve target resource path
     std::filesystem::path targetPath{_effective_config->getRoot()};
-    targetPath /= getURInoLeadingSlash();
+    targetPath /= splitUriIntoPathAndQuery(getURInoLeadingSlash()).first; // get rid of query string
 
     // Prevent escaping root
     std::filesystem::path safePath;
@@ -41,10 +41,34 @@ void DELETERequest::generateResponse(Server* server, int clientFd)
     if (!std::filesystem::exists(safePath))
         return errorResponse(404);
 
+    // If path exists and is a directory, check for index files
+    std::filesystem::path cgiPath = safePath;
+    if (std::filesystem::is_directory(safePath))
+    {
+        for (const auto &file : _effective_config->getIndexFilesVec())
+        {
+            std::filesystem::path indexPath = safePath / file;
+            if (std::filesystem::exists(indexPath))
+            {
+                cgiPath = indexPath;
+                break;
+            }
+        }
+    }
+
+    // Check if path matches any CGI handler
+    for (const auto &[extension, interpreter] : _effective_config->getCGIHandlersMap())
+    {
+        if (cgiPath.extension().string() == extension)
+        {
+            std::cout << "CGI detected for: " << cgiPath << std::endl;
+            return serveCGI(cgiPath, interpreter);
+        }
+    }
+
+    // Don't allow deletion of directories
     if (std::filesystem::is_directory(safePath))
         return errorResponse(403);
-
-    // TODO: DELETE should not be able to delete index files and websites files! Only allow DELETE inside upload directory
 
     // Remove the file
     std::error_code ec;
