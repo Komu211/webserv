@@ -65,7 +65,7 @@ void CGISubprocess::setEnvironment(const std::unordered_map<std::string, std::st
 void CGISubprocess::createSubprocess(const std::filesystem::path &filePathAbs, const std::string &interpreter)
 {
     // fork
-    _pid = fork();
+    auto _pid = fork();
     if (_pid == -1)
         throw std::runtime_error("Failed to create fork for CGI: " + std::string{strerror(errno)});
 
