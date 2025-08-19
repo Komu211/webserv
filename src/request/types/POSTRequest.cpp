@@ -388,7 +388,8 @@ void POSTRequest::continuePrevious()
             else if (fileData.fileType == OpenFile::WRITE)
             {
                 ++num_ready;
-                // TODO: Write to file or CGI
+                ResponseWriter response(201, {{"Content-Type", "text/plain"}}, "File uploaded successfully\n");
+                _fullResponse = response.write();
             }
         }
     }
