@@ -77,8 +77,6 @@ void POSTRequest::generateResponse(Server* server, int clientFd)
     
     if (contentType.find("multipart/form-data") != std::string::npos)
         return handleMultipart();
-    else if (contentType == "application/x-www-form-urlencoded")
-        return handleUrlEncoded();
     else
         return errorResponse(415); // Unsupported Media Type    
 }
@@ -86,10 +84,7 @@ void POSTRequest::generateResponse(Server* server, int clientFd)
 void POSTRequest::handleMultipart()
 {
     std::cout << "Handling multipart form data" << std::endl;
-    if (!_filename.empty()) {
-        return handleFileUpload();
-    }
-
+    
     std::vector<MultipartPart> parts = parseMultipartFormData();
     if (parts.empty())
     {
@@ -97,11 +92,10 @@ void POSTRequest::handleMultipart()
         return errorResponse(400);
     }
 
-    MultipartPart* part = findUploadFilePart(parts);
-    if (part)
+    std::vector<MultipartPart*> fileParts = findAllUploadFileParts(parts);
+    if (!fileParts.empty())
     {
-        extractFileInfo(*part);
-        return handleFileUpload();
+        return handleFileUpload(fileParts);
     }
     else {
         handleFormFields(parts);
@@ -241,15 +235,7 @@ POSTRequest::MultipartPart POSTRequest::parsePartContent(const std::string& part
 }
 
 
-void POSTRequest::extractFileInfo(MultipartPart& part) {
-    
-    if (!part.filename.empty()) {
-        _filename = part.filename;
-        std::cout << "Extracted filename: " << _filename << std::endl;
-    }
-}
-
-void POSTRequest::handleFileUpload() {
+void POSTRequest::handleFileUpload(const std::vector<MultipartPart*>& fileParts) {
     // Reused old logic
 
 
@@ -276,76 +262,63 @@ void POSTRequest::handleFileUpload() {
             return errorResponse(500);
     }
 
+    // Process each file part
+    for (const auto& filePart : fileParts) {
+        std::string filename = filePart->filename;
+        if (filename.empty()) {
+            auto now = std::chrono::system_clock::now();
+            auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+            filename = std::string("upload_") + std::to_string(epoch) + ".bin";
+        }
 
-    // TODO: CHANGE TO ALLOW MULTIPLE FILES ?!
+        std::filesystem::path targetPath = safeUploadDir / filename;
 
-    
-    // Use extracted filename or generate one
-    std::string filename = _filename;
-    if (filename.empty()) {
-        // Generate filename with timestamp
-        auto now = std::chrono::system_clock::now();
-        auto epoch = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
-        filename = std::string("upload_") + std::to_string(epoch) + ".bin";
-    }
-
-    std::filesystem::path targetPath = safeUploadDir / filename;
-
-    // If file exists, append number to avoid overwrite
-    if (std::filesystem::exists(targetPath))
-    {
-        std::string stem = targetPath.stem().string();
-        std::string ext = targetPath.extension().string();
-        for (int i = 1; i < 10000; ++i)
+        // If file exists, append number to avoid overwrite
+        if (std::filesystem::exists(targetPath))
         {
-            std::filesystem::path candidate = safeUploadDir / (stem + "_" + std::to_string(i) + ext);
-            if (!std::filesystem::exists(candidate))
+            std::string stem = targetPath.stem().string();
+            std::string ext = targetPath.extension().string();
+            for (int i = 1; i < 10000; ++i)
             {
-                targetPath = candidate;
-                break;
+                std::filesystem::path candidate = safeUploadDir / (stem + "_" + std::to_string(i) + ext);
+                if (!std::filesystem::exists(candidate))
+                {
+                    targetPath = candidate;
+                    break;
+                }
             }
         }
+
+        // Open file for writing
+        int fd = open(targetPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd == -1) {
+            std::cerr << "Failed to open file for writing: " << strerror(errno) << std::endl;
+            return errorResponse(500);
+        }
+
+        // Set to non-blocking mode
+        try {
+            setNonBlocking(fd);
+        } catch (const std::exception& e) {
+            close(fd);
+            std::cerr << "Failed to set file to non-blocking: " << e.what() << std::endl;
+            return errorResponse(500);
+        }
+
+        // Create OpenFile structure for writing
+        OpenFile openFile;
+        openFile.fileType = OpenFile::WRITE;
+        openFile.content = filePart->content;
+        openFile.size = filePart->content.size();
+        openFile.finished = false;
+
+        // Register file with server
+        _clientData->openFiles[fd] = openFile;
+        _server->getOpenFilesToClientMap()[fd] = _clientFd;
+        _server->getPollManager().addWriteFileFd(fd);
+
+        std::cout << "File upload initiated for: " << targetPath.filename() << " (" << openFile.size << " bytes)" << std::endl;
     }
-
-    // Open file for writing
-    int fd = open(targetPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd == -1) {
-        std::cerr << "Failed to open file for writing: " << strerror(errno) << std::endl;
-        return errorResponse(500);
-    }
-
-    // Set to non-blocking mode
-    try {
-        setNonBlocking(fd);
-    } catch (const std::exception& e) {
-        close(fd);
-        std::cerr << "Failed to set file to non-blocking: " << e.what() << std::endl;
-        return errorResponse(500);
-    }
-
-    // Find file content from the parsed multipart data
-    // TODO: One Upload or Multiple Uploads?
-    std::vector<MultipartPart> parts = parseMultipartFormData();
-    MultipartPart* filePart = findUploadFilePart(parts);
-    
-    if (!filePart) {
-        close(fd);
-        return errorResponse(400);
-    }
-
-    // Create OpenFile structure for writing
-    OpenFile openFile;
-    openFile.fileType = OpenFile::WRITE;
-    openFile.content = filePart->content;
-    openFile.size = filePart->content.size();
-    openFile.finished = false;
-
-    // Register file with server
-    _clientData->openFiles[fd] = openFile;
-    _server->getOpenFilesToClientMap()[fd] = _clientFd;
-    _server->getPollManager().addWriteFileFd(fd);
-
-    std::cout << "File upload initiated for: " << targetPath.filename() << " (" << openFile.size << " bytes)" << std::endl;
 }
 
 void POSTRequest::handleFormFields(const std::vector<MultipartPart>& parts) {
@@ -353,24 +326,25 @@ void POSTRequest::handleFormFields(const std::vector<MultipartPart>& parts) {
     (void)parts;
 }
 
-void POSTRequest::handleUrlEncoded() {
-    // TODO: Implement logic
-}
 
-POSTRequest::MultipartPart* POSTRequest::findUploadFilePart(const std::vector<MultipartPart>& parts) {
-    // TODO: We only accept one file or accept multiple? Current approach is one file but Struct is designed for multiple.
+std::vector<POSTRequest::MultipartPart*> POSTRequest::findAllUploadFileParts(const std::vector<MultipartPart>& parts) {
+    std::vector<MultipartPart*> fileParts;
+    
     for (auto& part : const_cast<std::vector<MultipartPart>&>(parts)) {
         if (!part.filename.empty()) {
-            return &part;
+            fileParts.push_back(&part);
         }
     }
-    return nullptr;
+    
+    return fileParts;
 }
 
 
 void POSTRequest::continuePrevious()
 {
     std::size_t num_ready{0};
+    std::size_t num_files_uploaded{0};
+    
     for (auto& [fileFd, fileData] : _clientData->openFiles)
     {
         if (fileData.finished)
@@ -388,12 +362,22 @@ void POSTRequest::continuePrevious()
             else if (fileData.fileType == OpenFile::WRITE)
             {
                 ++num_ready;
-                ResponseWriter response(201, {{"Content-Type", "text/plain"}}, "File uploaded successfully\n");
-                _fullResponse = response.write();
+                ++num_files_uploaded;
             }
         }
     }
+    
     if (num_ready == _clientData->openFiles.size())
+    {
+        if (num_files_uploaded > 0)
+        {
+            std::string responseMessage;
+            responseMessage = std::to_string(num_files_uploaded) + " File(s) uploaded successfully\n";
+                
+            ResponseWriter response(201, {{"Content-Type", "text/plain"}}, responseMessage);
+            _fullResponse = response.write();
+        }
         _responseState = READY;
+    }
 }
 

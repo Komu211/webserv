@@ -23,18 +23,13 @@ public:
         std::string content;
     };
     
-    
-    std::string _filename;
-
-
     void handleMultipart();
     void handleUrlEncoded();
-    void handleFileUpload();
+    void handleFileUpload(const std::vector<MultipartPart*>& fileParts);
     void handleFormFields(const std::vector<MultipartPart> &parts);
     std::vector<MultipartPart> parseMultipartFormData();
     MultipartPart parsePartContent(const std::string& partContent);
-    MultipartPart* findUploadFilePart(const std::vector<MultipartPart> &parts);
-    void extractFileInfo(MultipartPart &part);
+    std::vector<MultipartPart*> findAllUploadFileParts(const std::vector<MultipartPart> &parts);
 
 
     void generateResponse(Server* server, int clientFd) override;
