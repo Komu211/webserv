@@ -58,7 +58,7 @@ private:
     std::set<std::string> _limit_except{};
 
     // Location to save uploads on the server
-    std::string _upload_store{"./uploads"};
+    std::string _upload_store{""};
 
     // For redirects; Stops processing and returns the specified code to the client
     std::pair<int, std::string> _return{-1, ""};
