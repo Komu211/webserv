@@ -245,7 +245,6 @@ void LocationConfig::setAutoIndex(std::string directive)
     trim(directive, ";");
     trimOuterSpacesAndQuotes(directive);
     ;
-
     // Convert string to lowercase
     std::transform(directive.begin(), directive.end(), directive.begin(), [](unsigned char c) { return std::tolower(c); });
 
