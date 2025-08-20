@@ -70,7 +70,9 @@ std::string HTTPRequest::getMinimalErrorDefaultBody(int errorCode) const
     case 400:
         return "<html><head><title>500 Internal Server Error</title></head>"
                "<body><h1>500 Internal Server Error</h1>"
-               "<p>The server encountered an internal error and was unable to complete your request.</p></body></html>";
+        return "<html><head><title>400 Bad Request</title></head>"
+               "<body><h1>400 Bad Request</h1>"
+               "<p>Your browser sent a request that this server could not understand.</p></body></html>";
     case 403:
         return "<html><head><title>403 Forbidden</title></head>"
                "<body><h1>403 Forbidden</h1><p>Access to resource is forbidden.</p></body></html>";
