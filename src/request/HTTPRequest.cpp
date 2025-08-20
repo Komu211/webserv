@@ -307,7 +307,7 @@ std::unordered_map<std::string, std::string> HTTPRequest::createCGIenvironment(c
     else
         envMap["CONTENT_TYPE"] = "";
 
-    envMap["CONTENT_LENGTH"] = _data.body.length();
+    envMap["CONTENT_LENGTH"] = std::to_string(_data.body.length());
 
     if (_data.headers.find("host") != _data.headers.end())
         envMap["SERVER_NAME"] = _data.headers.at("host");
