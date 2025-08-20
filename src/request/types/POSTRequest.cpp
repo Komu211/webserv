@@ -332,6 +332,7 @@ void POSTRequest::handleFileUpload(const std::vector<MultipartPart *> &fileParts
         openFile.content = filePart->content;
         openFile.size = filePart->content.size();
         openFile.finished = false;
+        openFile.lastReadWriteTime = std::chrono::steady_clock::now();
 
         // Register file with server
         _clientData->openFiles[fd] = openFile;
@@ -369,7 +370,7 @@ void POSTRequest::continuePrevious()
             if (fileData.fileType == OpenFile::READ)
             {
                 ++num_ready;
-                if (fileData.isCGI && _CgiSubprocess != nullptr)
+                if (fileData.isCGI && _cgiSubprocess != nullptr)
                     cgiOutputToResponse(fileData.content);
                 else if (_responseWithoutBody != nullptr)
                 {
@@ -396,7 +397,7 @@ void POSTRequest::continuePrevious()
             ResponseWriter response(201, {{"Content-Type", "text/plain"}}, responseMessage);
             _fullResponse = response.write();
         }
-        if (_CgiStartTime.has_value()) // A CGI process exists
+        if (_cgiStartTime.has_value()) // A CGI process exists
             return checkCGIstatus();
         else // No CGI process exists
             _responseState = READY;

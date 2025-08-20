@@ -20,6 +20,8 @@
 #include <vector>
 
 #define BUFFER_SIZE 4096
+#define CLIENT_TIMEOUT 45 // seconds
+#define FILE_TIMEOUT 30   // seconds
 
 // Global volatile flag to signal shutdown
 extern volatile std::sig_atomic_t g_shutdownServer;
@@ -46,22 +48,24 @@ struct OpenFile
         READ,
         WRITE
     };
-    std::string content;
-    bool        finished{false};
-    bool        isCGI{false};
-    ReadOrWrite fileType;
-    std::size_t size{};
+    std::string                                        content;
+    bool                                               finished{false};
+    bool                                               isCGI{false};
+    ReadOrWrite                                        fileType;
+    std::size_t                                        size{};
+    std::chrono::time_point<std::chrono::steady_clock> lastReadWriteTime;
 };
 
 struct ClientData
 {
-    std::string                       partialRequest{""};
-    std::unique_ptr<HTTPRequest>      parsedRequest{nullptr};
-    PendingResponse                   pendingResponse;
-    const ServerConfig               *serverConfig;
-    std::unordered_map<int, OpenFile> openFiles;
-    std::string                       hostName;
-    std::string                       port;
+    std::string                                        partialRequest{""};
+    std::unique_ptr<HTTPRequest>                       parsedRequest{nullptr};
+    PendingResponse                                    pendingResponse;
+    const ServerConfig                                *serverConfig;
+    std::unordered_map<int, OpenFile>                  openFiles;
+    std::string                                        hostName;
+    std::string                                        port;
+    std::chrono::time_point<std::chrono::steady_clock> lastInteractionTime;
 };
 
 class Server
@@ -88,6 +92,7 @@ private:
     void            writeToFile(int fileFd, ClientData &client_data);
     void            respondToClients();
     void            respondToClient(int clientFd);
+    void            checkTimeoutConnectionsAndFiles();
     void            closeConnections();
     void            closeDoneFiles();
     void            closeClientFiles(int fd);

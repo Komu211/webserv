@@ -112,6 +112,7 @@ void HTTPRequest::openFileSetHeaders(const std::filesystem::path &filePath)
     OpenFile open_file;
     open_file.fileType = OpenFile::READ;
     open_file.size = std::filesystem::file_size(filePath);
+    open_file.lastReadWriteTime = std::chrono::steady_clock::now();
     _clientData->openFiles[fd] = open_file;
     _server->getOpenFilesToClientMap()[fd] = _clientFd;
     _server->getPollManager().addReadFileFd(fd);
@@ -366,10 +367,10 @@ void HTTPRequest::serveCGI(const std::filesystem::path &filePath, const std::str
     auto filePathAbs{std::filesystem::absolute(filePath)};
     try
     {
-        _CgiSubprocess = std::make_unique<CGISubprocess>();
+        _cgiSubprocess = std::make_unique<CGISubprocess>();
         // CGISubprocess subprocess;
-        _CgiSubprocess->setEnvironment(createCGIenvironment(filePathAbs));
-        _CgiSubprocess->createSubprocess(filePathAbs, interpreter);
+        _cgiSubprocess->setEnvironment(createCGIenvironment(filePathAbs));
+        _cgiSubprocess->createSubprocess(filePathAbs, interpreter);
 
         // Register the write to CGI with poll
         OpenFile open_write_file;
@@ -377,7 +378,8 @@ void HTTPRequest::serveCGI(const std::filesystem::path &filePath, const std::str
         open_write_file.isCGI = true;
         open_write_file.content = _data.body;
         open_write_file.size = _data.body.size();
-        int writeToCgiFd{_CgiSubprocess->getWritePipeToCGI()};
+        open_write_file.lastReadWriteTime = std::chrono::steady_clock::now();
+        int writeToCgiFd{_cgiSubprocess->getWritePipeToCGI()};
         _clientData->openFiles[writeToCgiFd] = open_write_file;
         _server->getOpenFilesToClientMap()[writeToCgiFd] = _clientFd;
         _server->getPollManager().addWriteFileFd(writeToCgiFd);
@@ -387,13 +389,14 @@ void HTTPRequest::serveCGI(const std::filesystem::path &filePath, const std::str
         open_read_file.fileType = OpenFile::READ;
         open_read_file.isCGI = true;
         open_read_file.size = std::string::npos; // Will be later updated (in Server) based on header returned
-        int readFromCgiFd{_CgiSubprocess->getReadPipeFromCGI()};
+        open_read_file.lastReadWriteTime = std::chrono::steady_clock::now();
+        int readFromCgiFd{_cgiSubprocess->getReadPipeFromCGI()};
         _clientData->openFiles[readFromCgiFd] = open_read_file;
         _server->getOpenFilesToClientMap()[readFromCgiFd] = _clientFd;
         _server->getPollManager().addReadFileFd(readFromCgiFd);
 
         // For timeout
-        _CgiStartTime = std::chrono::steady_clock::now();
+        _cgiStartTime = std::chrono::steady_clock::now();
     }
     catch (const std::exception &e)
     {
@@ -404,9 +407,9 @@ void HTTPRequest::serveCGI(const std::filesystem::path &filePath, const std::str
 
 void HTTPRequest::checkCGIstatus()
 {
-    if (_CgiSubprocess->childHasExited())
+    if (_cgiSubprocess->childHasExited())
     {
-        if (_CgiSubprocess->getChildExitStatus() == 0)
+        if (_cgiSubprocess->getChildExitStatus() == 0)
             _responseState = READY;
         else
         {
@@ -416,13 +419,13 @@ void HTTPRequest::checkCGIstatus()
     }
     else // child has not exited yet
     {
-        auto elapsed{std::chrono::steady_clock::now() - _CgiStartTime.value()};
+        auto elapsed{std::chrono::steady_clock::now() - _cgiStartTime.value()};
         if (elapsed >= std::chrono::seconds(CGI_TIMEOUT)) // CGI process going on for too long
         {
             std::cout << "CGI process has continued for longer than the specified timeout. Killing it." << '\n';
-            _CgiSubprocess->killSubprocess(SIGKILL);
-            _CgiSubprocess = nullptr;
-            _CgiStartTime = std::nullopt;
+            _cgiSubprocess->killSubprocess(SIGKILL);
+            _cgiSubprocess = nullptr;
+            _cgiStartTime = std::nullopt;
             return errorResponse(500);
         }
         // else, do nothing (keep _responseState to IN_PROGRESS)

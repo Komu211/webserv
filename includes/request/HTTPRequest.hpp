@@ -22,7 +22,7 @@
 #include <unordered_set>
 #include <vector>
 
-#define CGI_TIMEOUT 3 // seconds
+#define CGI_TIMEOUT 15 // seconds
 
 // Forward declarations
 class Server;
@@ -47,14 +47,14 @@ protected:
     const LocationConfig           *_effective_config;
     ResponseState                   _responseState{NOT_STARTED};
     std::unique_ptr<ResponseWriter> _responseWithoutBody{nullptr};
-    std::unique_ptr<CGISubprocess>  _CgiSubprocess{nullptr};
+    std::unique_ptr<CGISubprocess>  _cgiSubprocess{nullptr};
     std::string                     _fullResponse;
     Server                         *_server;
     int                             _clientFd;
     ClientData                     *_clientData;
 
     // For CGI timeout
-    std::optional<std::chrono::time_point<std::chrono::steady_clock>> _CgiStartTime{std::nullopt};
+    std::optional<std::chrono::time_point<std::chrono::steady_clock>> _cgiStartTime{std::nullopt};
 
 protected: // helper functions to use within public member functions of inherited classes
     // Remove leading slash from URI so std::filesystem doesn't think it refers to root directory

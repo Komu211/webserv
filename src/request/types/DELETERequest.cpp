@@ -95,7 +95,7 @@ void DELETERequest::continuePrevious()
             if (fileData.fileType == OpenFile::READ)
             {
                 ++num_ready;
-                if (fileData.isCGI && _CgiSubprocess != nullptr)
+                if (fileData.isCGI && _cgiSubprocess != nullptr)
                     cgiOutputToResponse(fileData.content);
                 else if (_responseWithoutBody != nullptr)
                 {
@@ -113,7 +113,7 @@ void DELETERequest::continuePrevious()
     }
     if (num_ready == _clientData->openFiles.size())
     {
-        if (_CgiStartTime.has_value()) // A CGI process exists
+        if (_cgiStartTime.has_value()) // A CGI process exists
             return checkCGIstatus();
         else // No CGI process exists
             _responseState = READY;

@@ -95,6 +95,9 @@ void Server::run()
         // Write responses to clients
         respondToClients();
 
+        // Idle connections and long reads/writes will be closed
+        checkTimeoutConnectionsAndFiles();
+
         // Clean up closed connections
         closeConnections();
 
@@ -128,7 +131,7 @@ void Server::acceptNewConnection(int serverFd)
         std::cout << "Accepted new connection via: \n" << *(_sockets[serverFd]) << '\n';
         _pollManager.addClientSocket(clientFd);
         _clientData[clientFd] = {
-            "", nullptr, {}, _socket_to_server_config[serverFd], {}, _sockets[serverFd]->get_host(), _sockets[serverFd]->get_port()};
+            "", nullptr, {}, _socket_to_server_config[serverFd], {}, _sockets[serverFd]->get_host(), _sockets[serverFd]->get_port(), std::chrono::steady_clock::now()};
     }
     else
     {
@@ -150,6 +153,7 @@ void Server::readFromClients()
         try
         {
             currentRequest = readFromClientOrFile(clientFd, _clientData[clientFd].partialRequest);
+            _clientData[clientFd].lastInteractionTime = std::chrono::steady_clock::now();
             std::cout << "Received request from client: " << clientFd << '\n';
         }
         catch (const std::runtime_error &e)
@@ -165,7 +169,7 @@ void Server::readFromClients()
             try
             {
                 HTTPRequestData data = HTTPRequestParser::parse(currentRequest);
-                std::cout << "Parsed request body:\n" << data.body << std::endl;
+                // std::cout << "Parsed request body:\n" << data.body << std::endl;
 
                 const ServerConfig *server_config = _clientData[clientFd].serverConfig;
 
@@ -196,7 +200,8 @@ void Server::readFromOpenFiles()
         try
         {
             currentRead = readFromClientOrFile(fileFd, client_data.openFiles[fileFd].content);
-            std::cout << "Successfully read from file: " << fileFd << '\n';
+            // std::cout << "Successfully read from file: " << fileFd << '\n';
+            client_data.openFiles[fileFd].lastReadWriteTime = std::chrono::steady_clock::now();
             if (client_data.openFiles[fileFd].isCGI)
                 client_data.openFiles[fileFd].size = HTTPRequestParser::getResponseSizeFromCgiHeader(currentRead);
         }
@@ -289,6 +294,7 @@ void Server::respondToClient(int clientFd)
             return;
     }
     std::cout << "Sending response to client: " << clientFd << '\n';
+    _clientData[clientFd].lastInteractionTime = std::chrono::steady_clock::now();
     auto pendingResponse = writeResponseToClient(clientFd);
     if (pendingResponse.response.size() == pendingResponse.sent)
     {
@@ -329,6 +335,7 @@ void Server::writeToOpenFiles()
             {
                 std::cout << "Writing to file: " << fileFd << '\n';
                 writeToFile(fileFd, client_data);
+                client_data.openFiles[fileFd].lastReadWriteTime = std::chrono::steady_clock::now();
                 if (client_data.openFiles[fileFd].content.empty())
                 {
                     std::cout << "Finished writing to file. Closing it now." << '\n';
@@ -353,6 +360,30 @@ void Server::writeToFile(int fileFd, ClientData &client_data)
     if (bytesWritten < 0)
         throw std::runtime_error("Error writing to file " + std::to_string(fileFd) + ": " + strerror(errno));
     client_data.openFiles[fileFd].content.erase(0, bytesWritten);
+}
+
+void Server::checkTimeoutConnectionsAndFiles()
+{
+    for (const auto &[clientFd, client_data] : _clientData)
+    {
+        auto elapsedSinceInteraction{std::chrono::steady_clock::now() - client_data.lastInteractionTime};
+        if (elapsedSinceInteraction >= std::chrono::seconds(CLIENT_TIMEOUT))
+        {
+            // TODO: add which client (maybe overload operator<<)
+            std::cout << "Client's last interaction time is longer than the specified timeout. Closing connection." << '\n';
+            _clientsToRemove.insert(clientFd);
+        }
+        for (const auto &[fileFd, open_file] : client_data.openFiles)
+        {
+            auto elapsedSinceReadWrite{std::chrono::steady_clock::now() - open_file.lastReadWriteTime};
+            if (elapsedSinceReadWrite >= std::chrono::seconds(FILE_TIMEOUT))
+            {
+                // TODO: add which file (maybe overload operator<<)
+                std::cout << "File's last read/write time is longer than the specified timeout. Closing file." << '\n';
+                _filesToRemove.insert(fileFd);
+            }
+        }
+    }
 }
 
 void Server::closeConnections()
