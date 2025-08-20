@@ -303,14 +303,14 @@ void removeLeadingSlash(std::string& str)
 
 void setNonBlocking(int fd)
 {
-    int flags = fcntl(fd, F_GETFL, 0); // ? is this flag allowed
-    if (flags == -1)
-    {
-        close(fd);
-        throw std::runtime_error("Failed to get fd flags: " + std::string{strerror(errno)});
-    }
+    // int flags = fcntl(fd, F_GETFL, 0); // ? is this flag allowed
+    // if (flags == -1)
+    // {
+    //     close(fd);
+    //     throw std::runtime_error("Failed to get fd flags: " + std::string{strerror(errno)});
+    // }
 
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+    if (fcntl(fd, F_SETFL, /*flags |*/ O_NONBLOCK) == -1)
     {
         close(fd);
         throw std::runtime_error("Failed to set fd to non-blocking mode: " + std::string{strerror(errno)});

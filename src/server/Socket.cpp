@@ -87,14 +87,14 @@ void Socket::createSocket()
 
 void Socket::setNonBlocking()
 {
-    int flags = fcntl(_fd, F_GETFL, 0); // ? is this flag allowed
-    if (flags == -1)
-    {
-        close(_fd);
-        throw std::runtime_error("Failed to get socket flags: " + std::string{strerror(errno)});
-    }
+    // int flags = fcntl(_fd, F_GETFL, 0); // ? is this flag allowed
+    // if (flags == -1)
+    // {
+    //     close(_fd);
+    //     throw std::runtime_error("Failed to get socket flags: " + std::string{strerror(errno)});
+    // }
 
-    if (fcntl(_fd, F_SETFL, flags | O_NONBLOCK) == -1)
+    if (fcntl(_fd, F_SETFL, /*flags |*/ O_NONBLOCK) == -1)
     {
         close(_fd);
         throw std::runtime_error("Failed to set socket to non-blocking mode: " + std::string{strerror(errno)});
