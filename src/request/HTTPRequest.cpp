@@ -68,8 +68,6 @@ std::string HTTPRequest::getMinimalErrorDefaultBody(int errorCode) const
     switch (errorCode)
     {
     case 400:
-        return "<html><head><title>500 Internal Server Error</title></head>"
-               "<body><h1>500 Internal Server Error</h1>"
         return "<html><head><title>400 Bad Request</title></head>"
                "<body><h1>400 Bad Request</h1>"
                "<p>Your browser sent a request that this server could not understand.</p></body></html>";
