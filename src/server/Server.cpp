@@ -154,11 +154,11 @@ void Server::readFromClients()
         {
             currentRequest = readFromClientOrFile(clientFd, _clientData[clientFd].partialRequest);
             _clientData[clientFd].lastInteractionTime = std::chrono::steady_clock::now();
-            std::cout << "Received request from client: " << clientFd << '\n';
+            std::cout << "Received request from client: " << clientFd << ' ' << _clientData[clientFd] << '\n';
         }
         catch (const std::runtime_error &e)
         {
-            std::cerr << "Error reading from client " << clientFd << ": " << e.what() << '\n';
+            std::cerr << "Error reading from client " << clientFd << ' ' << _clientData[clientFd] << ": " << e.what() << '\n';
             _clientsToRemove.insert(clientFd);
             continue;
         }
@@ -293,12 +293,12 @@ void Server::respondToClient(int clientFd)
         else
             return;
     }
-    std::cout << "Sending response to client: " << clientFd << '\n';
+    // std::cout << "Sending response to client: " << clientFd << ' ' << _clientData[clientFd] << '\n';
     _clientData[clientFd].lastInteractionTime = std::chrono::steady_clock::now();
     auto pendingResponse = writeResponseToClient(clientFd);
     if (pendingResponse.response.size() == pendingResponse.sent)
     {
-        std::cout << "All sent, switch back to listening" << std::endl;
+        std::cout << "Full response sent, switch back to listening for client: " << clientFd << ' ' << _clientData[clientFd] << std::endl;
         if (_clientData[clientFd].parsedRequest->isCloseConnection())
             _clientsToRemove.insert(clientFd);
         _clientData[clientFd].pendingResponse = {};
@@ -333,12 +333,12 @@ void Server::writeToOpenFiles()
         {
             try
             {
-                std::cout << "Writing to file: " << fileFd << '\n';
+                // std::cout << "Writing to file: " << fileFd << '\n';
                 writeToFile(fileFd, client_data);
                 client_data.openFiles[fileFd].lastReadWriteTime = std::chrono::steady_clock::now();
                 if (client_data.openFiles[fileFd].content.empty())
                 {
-                    std::cout << "Finished writing to file. Closing it now." << '\n';
+                    std::cout << "Finished writing to file " << fileFd << ". Closing it now." << '\n';
                     client_data.openFiles[fileFd].finished = true;
                     _filesToRemove.insert(fileFd);
                 }
@@ -370,7 +370,7 @@ void Server::checkTimeoutConnectionsAndFiles()
         if (elapsedSinceInteraction >= std::chrono::seconds(CLIENT_TIMEOUT))
         {
             // TODO: add which client (maybe overload operator<<)
-            std::cout << "Client's last interaction time is longer than the specified timeout. Closing connection." << '\n';
+            std::cout << "Client's last interaction time is longer than the specified timeout. Closing connection: " << clientFd << ' ' << client_data << '\n';
             _clientsToRemove.insert(clientFd);
         }
         for (const auto &[fileFd, open_file] : client_data.openFiles)
@@ -379,7 +379,7 @@ void Server::checkTimeoutConnectionsAndFiles()
             if (elapsedSinceReadWrite >= std::chrono::seconds(FILE_TIMEOUT))
             {
                 // TODO: add which file (maybe overload operator<<)
-                std::cout << "File's last read/write time is longer than the specified timeout. Closing file." << '\n';
+                std::cout << "File's last read/write time is longer than the specified timeout. Closing file: " << fileFd << '\n';
                 _filesToRemove.insert(fileFd);
             }
         }
@@ -460,3 +460,15 @@ std::unordered_map<int, int> &Server::getOpenFilesToClientMap()
 {
     return _openFilesToClientMap;
 }
+
+std::ostream &operator<<(std::ostream &out, const ClientData &client_data)
+{
+    std::cout << "(connected on " << client_data.hostName << ":" << client_data.port << ")";
+    return out;
+}
+
+// std::ostream& operator<<(std::ostream& out, const OpenFile& file_data)
+// {
+//     //
+//     return out;
+// }

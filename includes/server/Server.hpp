@@ -117,3 +117,6 @@ public:
     void fillPollManager();
     void run();
 };
+
+std::ostream &operator<<(std::ostream &out, const ClientData &client_data);
+// std::ostream& operator<<(std::ostream& out, const OpenFile& file_data);
