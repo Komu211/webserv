@@ -154,7 +154,7 @@ void Server::readFromClients()
         {
             currentRequest = readFromClientOrFile(clientFd, _clientData[clientFd].partialRequest);
             _clientData[clientFd].lastInteractionTime = std::chrono::steady_clock::now();
-            std::cout << "Received request from client: " << clientFd << ' ' << _clientData[clientFd] << '\n';
+            // std::cout << "Received request from client: " << clientFd << ' ' << _clientData[clientFd] << '\n';
         }
         catch (const std::runtime_error &e)
         {
