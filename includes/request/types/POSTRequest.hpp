@@ -24,6 +24,7 @@ public:
     };
     
     void handleMultipart();
+    void handleNonMultipart(const std::string& extension);
     void handleFileUpload(const std::vector<MultipartPart*>& fileParts);
     std::vector<MultipartPart> parseMultipartFormData();
     MultipartPart parsePartContent(const std::string& partContent);
