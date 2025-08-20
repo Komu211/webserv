@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📤</text></svg>"
+    />
+    <title>Upload — Webserv</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        filter: blur(100px);
+      }
+      #container {
+        font-family: Inter, Roboto, Helvetica Neue, Arial Nova, Nimbus Sans, Arial,
+          sans-serif;
+        height: 100%;
+      }
+      main {
+        height: 100%;
+        display: flex;
+        justify-content: center;
+      }
+      #hero {
+        display: flex;
+        align-items: start;
+        flex-direction: column;
+        justify-content: center;
+        padding: 16px;
+      }
+      h1 {
+        font-size: 22px;
+        margin-top: 0.25em;
+      }
+      .box {
+        padding: 16px;
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid white;
+      }
+      .section {
+        display: grid;
+        gap: 12px;
+        margin: 12px 0;
+        min-width: 320px;
+        max-width: 560px;
+      }
+      label {
+        color: #111827;
+        font-size: 14px;
+      }
+      input[type="text"],
+      textarea,
+      input[type="file"] {
+        width: 100%;
+        box-sizing: border-box;
+        border-radius: 10px;
+        border: 1px solid #e5e7eb;
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+      textarea {
+        min-height: 140px;
+        resize: vertical;
+      }
+      .row {
+        display: grid;
+        gap: 8px;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        padding: 10px 12px;
+        color: #fff;
+        background: linear-gradient(83.21deg, #3245ff, #bc52ee);
+        box-shadow: inset 0 0 0 1px #ffffff1f, inset 0 -2px #0000003d;
+        border-radius: 10px;
+        text-decoration: none;
+        border: 0;
+        cursor: pointer;
+      }
+      .button:hover {
+        color: #e6e6e6;
+        box-shadow: none;
+      }
+      .muted {
+        color: #6b7280;
+        font-size: 13px;
+      }
+      .stack {
+        display: grid;
+        gap: 16px;
+      }
+      /* Modal */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.35);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        z-index: 50;
+      }
+      .overlay.show {
+        display: flex;
+      }
+      .modal-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e5e7eb;
+        max-width: 520px;
+        width: 100%;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        display: grid;
+        gap: 12px;
+      }
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+      }
+      @media screen and (max-width: 768px) {
+        #container {
+          display: flex;
+          flex-direction: column;
+        }
+        #hero {
+          display: block;
+          padding-top: 10%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <img id="background" src="/public/background.BPKAcmfN.svg" alt="" fetchpriority="high" />
+      <main>
+        <section id="hero">
+          <a href="/">
+            <img src="/public/waving-hand-svgrepo-com.svg" width="64" height="64" alt="Home" />
+          </a>
+          <h1>Upload to /upload_test</h1>
+          <div class="stack">
+            <div class="box section">
+              <strong>Upload a file</strong>
+              <form
+                class="row"
+                action="/upload_test"
+                method="POST"
+                enctype="multipart/form-data"
+                target="upload_iframe"
+              >
+                <label for="fileFilename">Filename (optional)</label>
+                <input id="fileFilename" data-role="filename" type="text" placeholder="e.g. photo.jpg" />
+                <input type="file" name="file" required />
+                <div class="actions">
+                  <button class="button" type="submit">Upload File</button>
+                  <span class="muted">Sends multipart/form-data to /upload_test</span>
+                </div>
+              </form>
+            </div>
+
+            <div class="box section">
+              <strong>Upload text</strong>
+              <form
+                class="row"
+                action="/upload_test"
+                method="POST"
+                enctype="text/plain"
+                target="upload_iframe"
+              >
+                <label for="text">Text</label>
+                <textarea id="text" name="text" placeholder="Type anything here..."></textarea>
+                <label for="textFilename">Filename (optional)</label>
+                <input id="textFilename" data-role="filename" type="text" placeholder="e.g. note.txt" />
+                <div class="actions">
+                  <button class="button" type="submit">Upload Text</button>
+                  <span class="muted">Sends text/plain to /upload_test</span>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+      </main>
+      <!-- Hidden iframe target to avoid navigation and CORS reads -->
+      <iframe id="upload_iframe" name="upload_iframe" style="display:none;"></iframe>
+    </div>
+    <!-- Success Modal -->
+    <div id="successOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="successTitle">
+      <div class="modal-card">
+        <h2 id="successTitle" style="margin:0;color:#111827;font-weight:500;">Upload complete</h2>
+        <p class="muted" id="successDesc">Your upload finished successfully.</p>
+        <div class="modal-actions">
+          <button id="closeSuccess" class="button" type="button">OK</button>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        const overlay = document.getElementById('successOverlay');
+        const closeBtn = document.getElementById('closeSuccess');
+        const iframe = document.getElementById('upload_iframe');
+        const forms = Array.prototype.slice.call(document.querySelectorAll('form[target="upload_iframe"]'));
+        let lastSubmittedForm = null;
+        let pending = false;
+
+        forms.forEach(function (form) {
+          form.dataset.baseAction = form.getAttribute('action');
+          form.addEventListener('submit', function () {
+            lastSubmittedForm = form;
+            // Apply optional filename by posting to /upload_test/<filename>
+            try {
+              var base = form.dataset.baseAction || form.getAttribute('action') || '';
+              base = base.replace(/\/$/, '');
+              var input = form.querySelector('input[data-role="filename"]');
+              var name = input && input.value ? input.value.trim() : '';
+              if (name) {
+                form.setAttribute('action', base + '/' + encodeURIComponent(name));
+              } else {
+                form.setAttribute('action', base);
+              }
+            } catch (e) {}
+            pending = true;
+          });
+        });
+
+        iframe.addEventListener('load', function () {
+          if (!pending) return; // ignore initial loads
+          pending = false;
+          if (lastSubmittedForm) {
+            try { lastSubmittedForm.reset(); } catch (e) {}
+            lastSubmittedForm = null;
+          }
+          overlay.classList.add('show');
+        });
+
+        function hide() {
+          overlay.classList.remove('show');
+        }
+        closeBtn.addEventListener('click', hide);
+        overlay.addEventListener('click', function (e) {
+          if (e.target === overlay) hide();
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') hide();
+        });
+      })();
+    </script>
+  </body>
+  </html>
+
+

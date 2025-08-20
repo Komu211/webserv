@@ -1,0 +1,76 @@
+#pragma once
+
+#include <chrono>
+#include <cmath>
+#include <cstring>
+#include <fcntl.h>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <set>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <unistd.h>
+#include <vector>
+
+/* Trim the start and end of a string using a given charset (default whitespaces) */
+void trim(std::string &str, const std::string &charset = " \t\n\r\f\v");
+
+/* Split a string into a vector of "words" using a given delimiter (default whitespaces).
+Does NOT remove spaces from start and end. Use trim() beforehand if that is desired. */
+std::vector<std::string> splitStr(const std::string &str, const std::string &charset = " \t\n\r\f\v");
+
+/* Like `splitStr()` but doesn't split quoted parts; throws on unclosed quote.
+Does NOT remove spaces from start and end. Use trim() beforehand if that is desired. */
+std::vector<std::string> splitStrExceptQuotes(const std::string &str, const std::string &charset = " \t\n\r\f\v");
+
+/* Convert a given input file stream to `std::string`.
+Is specifically designed to work with Nginx-like config files.
+May not give expected results for other files. */
+std::string iFStreamToString(std::ifstream &file_stream);
+
+/* Trim the outer spaces and then remove the outermost quotes */
+void trimOuterSpacesAndQuotes(std::string &str);
+
+/* Check if the first word of `str` is equal to `comparison` without regard to the first word being quoted.
+Does NOT remove spaces from start and end. Use trim() beforehand if that is desired.
+If length of `str` is equal to `comparison`, does NOT change the value pointed to by `next_word_pos` */
+bool firstWordEquals(const std::string &str, const std::string &comparison, std::size_t *next_word_pos = nullptr);
+
+// Check if the string ends with a certain substring
+bool strEndsWith(const std::string &str, const std::string &suffix);
+
+// Returns a pair of strings after spliting the parts before and after '?'
+std::pair<std::string, std::string> splitUriIntoPathAndQuery(const std::string& uri);
+
+/*Checks if a given string is a valid HTTP method.
+Assumes the input string is already in lowercase for case-insensitive comparison.
+@param str The string to check.
+@return true if the string is a valid HTTP method, false otherwise.*/
+bool isHttpMethod(const std::string &str);
+
+// Check if an IP address is localhost, 0.0.0.0, or loopback
+bool isStandardAddress(const std::string &address);
+
+// Get current system date and time in HTTP format
+std::string getCurrentGMTString();
+
+// Return the last modified time of a file in HTTP format
+std::string getLastModTimeHTTP(const std::filesystem::path &filePath);
+
+// Read the entire file content into a string. Throw on error
+// std::string readFileToString(const std::string &filename);
+
+// Remove leading forward slash if it exists
+void removeLeadingSlash(std::string &str);
+
+// Returns a human-readable string form of a site_t bytes value
+std::string bytesToHumanReadable(std::size_t size);
+
+// Sets a given fd to non-blocking mode. Throws AND CLOSES fd on error.
+void setNonBlocking(int fd);
+
+// Returns the standard HTTP reason phrase (as string) for an HTTP status code
+std::string reasonPhraseFromStatusCode(int code);

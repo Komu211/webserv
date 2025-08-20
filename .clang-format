@@ -16,7 +16,7 @@ BinPackArguments: true
 BinPackParameters: true
 BreakBeforeBraces: Allman
 BreakBeforeTernaryOperators: false
-ColumnLimit: 80
+ColumnLimit: 120
 IndentWidth: 4
 KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 1
@@ -34,3 +34,4 @@ SpacesInSquareBrackets: false
 TabWidth: 4
 UseTab: Never
 AlignConsecutiveAssignments: {}
+BreakConstructorInitializers: BeforeComma

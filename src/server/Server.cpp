@@ -1,21 +1,474 @@
 #include "Server.hpp"
-#include <chrono>
-#include <thread>
 
-Server::Server(std::string configFile): _name("Server name")
+#include "HTTPRequest.hpp"
+#include "HTTPRequestFactory.hpp"
+
+Server::Server(std::string configFileName)
+    : _global_config{std::move(configFileName)} // Initiate parsing of the config file
 {
-	std::cout << "Server created with config file: " << configFile << std::endl;
+    // Create listening sockets
+    for (const auto &server_config : _global_config.getServerConfigs())
+    {
+        // Each server_config can be listening on multiple host_port combinations
+        for (const auto &addr_info_pair : server_config->getAddrInfoVec())
+        {
+            auto newSocket{std::make_unique<Socket>(addr_info_pair)};
+            bool exists = false;
+            for (const auto &[_, existingSocket] : _sockets)
+            {
+                if (*existingSocket == *newSocket)
+                    exists = true;
+                // std::cout << "[warn] conflicting listen on " << existingSocket->get_host() << ':' << existingSocket->get_port() << ", ignored" << '\n';
+            }
+            if (exists)
+                continue;
+            try
+            {
+                newSocket->initSocket();
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error initializing socket: " << e.what() << '\n';
+                continue;
+            }
+
+            int socket_fd = newSocket->get_fd();
+            _sockets[socket_fd] = std::move(newSocket);
+            _socket_to_server_config[socket_fd] = server_config.get();
+        }
+    }
+    if (_sockets.empty())
+        throw std::runtime_error("No valid listen addresses available. Cannot start server.");
+}
+
+Server::~Server()
+{
+    for (auto &[clientFd, clientData] : _clientData)
+    {
+        close(clientFd);
+    }
+    std::cout << "Server successfully stopped. Goodbye!" << '\n';
+}
+
+void Server::fillPollManager()
+{
+    for (const auto &[fd, sockPtr] : _sockets)
+    {
+        _pollManager.addServerSocket(fd);
+    }
 }
 
 void Server::run()
 {
-	std::cout << "Server is running..." << std::endl;
+    std::cout << "Server is running..." << '\n';
+    std::cout << "Listening on the following sockets:" << '\n';
+    for (const auto &[_, sockPtr] : _sockets)
+    {
+        std::cout << " - " << *sockPtr << '\n';
+    }
 
-	while (42)
-	{
-		std::cout << "Waiting for requests..." << std::endl;
+    while (g_shutdownServer == 0)
+    {
+        const int pollResult = poll(_pollManager.data(), _pollManager.size(), -1);
 
-		// Sleep for 10 seconds
-		std::this_thread::sleep_for(std::chrono::seconds(10));
-	}
+        if (pollResult < 0)
+        {
+            // poll() was interrupted by a signal. Check g_shutdownServer flag in loop condition
+            if (errno == EINTR)
+                continue;
+
+            std::cerr << "Poll error: " << strerror(errno) << '\n';
+            continue;
+        }
+        // Accept new connections
+        acceptNewConnections();
+
+        // Read from clients
+        readFromClients();
+
+        // Read from open files
+        readFromOpenFiles();
+
+        // Write to open files
+        writeToOpenFiles();
+
+        // Write responses to clients
+        respondToClients();
+
+        // Idle connections and long reads/writes will be closed
+        checkTimeoutConnectionsAndFiles();
+
+        // Clean up closed connections
+        closeConnections();
+
+        // Clean up files that are we are done with
+        closeDoneFiles();
+    }
+    if (g_shutdownServer == 2)
+        throw std::runtime_error("execve failure"); // only possible to reach in CGI child process
 }
+
+void Server::acceptNewConnections()
+{
+    for (const int serverFd : _pollManager.getReadableServerSockets())
+    {
+        try
+        {
+            acceptNewConnection(serverFd);
+        }
+        catch (const std::runtime_error &e)
+        {
+            std::cerr << e.what() << '\n';
+        }
+    }
+}
+
+void Server::acceptNewConnection(int serverFd)
+{
+    const int clientFd = accept(serverFd, nullptr, nullptr);
+    if (clientFd >= 0)
+    {
+        std::cout << "Accepted new connection via: \n" << *(_sockets[serverFd]) << '\n';
+        _pollManager.addClientSocket(clientFd);
+        _clientData[clientFd] = {
+            "", nullptr, {}, _socket_to_server_config[serverFd], {}, _sockets[serverFd]->get_host(), _sockets[serverFd]->get_port(), std::chrono::steady_clock::now()};
+    }
+    else
+    {
+        // accept returns -1 if there are no more connections to accept; that's not necessarily an error if (errno == EAGAIN or EWOULDBLOCK)
+        if (errno == EWOULDBLOCK || errno == EAGAIN)
+        {
+            std::cout << "No more connections to accept via: \n" << *(_sockets[serverFd]) << '\n';
+            return;
+        }
+        // Throw only if (errno != EAGAIN or EWOULDBLOCK)
+        throw std::runtime_error("Error accepting new connection: " + std::string(strerror(errno)));
+    }
+}
+void Server::readFromClients()
+{
+    for (int clientFd : _pollManager.getReadableClientSockets())
+    {
+        std::string currentRequest;
+        try
+        {
+            currentRequest = readFromClientOrFile(clientFd, _clientData[clientFd].partialRequest);
+            _clientData[clientFd].lastInteractionTime = std::chrono::steady_clock::now();
+            std::cout << "Received request from client: " << clientFd << ' ' << _clientData[clientFd] << '\n';
+        }
+        catch (const std::runtime_error &e)
+        {
+            std::cerr << "Error reading from client " << clientFd << ' ' << _clientData[clientFd] << ": " << e.what() << '\n';
+            _clientsToRemove.insert(clientFd);
+            continue;
+        }
+        if (currentRequest.empty())
+            _clientsToRemove.insert(clientFd);
+        else if (HTTPRequestParser::isValidRequest(currentRequest))
+        {
+            try
+            {
+                HTTPRequestData data = HTTPRequestParser::parse(currentRequest);
+                // std::cout << "Parsed request body:\n" << data.body << std::endl;
+
+                const ServerConfig *server_config = _clientData[clientFd].serverConfig;
+
+                const LocationConfig *location_config = findLocationConfig(data.uri, server_config);
+
+                // std::cout << "Using ServerConfig: " << (server_config ? "found" : "not found") << ", LocationConfig: " << (location_config ? "found" : "not found") << std::endl;
+                _clientData[clientFd].parsedRequest = HTTPRequestFactory::createRequest(data, location_config);
+                _pollManager.updateEvents(clientFd, POLLOUT);
+                _clientData[clientFd].partialRequest.clear();
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error parsing request: " << e.what() << '\n';
+                _clientsToRemove.insert(clientFd);
+            }
+        }
+        else
+            _clientData[clientFd].partialRequest = currentRequest;
+    }
+}
+
+void Server::readFromOpenFiles()
+{
+    for (int fileFd : _pollManager.getReadableFiles())
+    {
+        ClientData &client_data{getClientOfFile(fileFd)};
+        std::string currentRead;
+        try
+        {
+            currentRead = readFromClientOrFile(fileFd, client_data.openFiles[fileFd].content);
+            // std::cout << "Successfully read from file: " << fileFd << '\n';
+            client_data.openFiles[fileFd].lastReadWriteTime = std::chrono::steady_clock::now();
+            if (client_data.openFiles[fileFd].isCGI)
+                client_data.openFiles[fileFd].size = HTTPRequestParser::getResponseSizeFromCgiHeader(currentRead);
+        }
+        catch (const std::runtime_error &e)
+        {
+            std::cerr << "Error reading from file " << fileFd << ": " << e.what() << '\n';
+            _filesToRemove.insert(fileFd);
+            continue;
+        }
+        if (currentRead.empty())
+        {
+            // Nothing more to read
+            client_data.openFiles[fileFd].finished = true;
+            _filesToRemove.insert(fileFd);
+        }
+        // recycling isValidRequest to check if CGI response is valid
+        else if (HTTPRequestParser::isValidRequest(currentRead))
+        {
+            try
+            {
+                HTTPRequestData data = HTTPRequestParser::parse(currentRead);
+                // nothing more to read
+                client_data.openFiles[fileFd].finished = true;
+                client_data.openFiles[fileFd].content = currentRead;
+                _filesToRemove.insert(fileFd);
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error parsing cgi response: " << e.what() << '\n';
+                _filesToRemove.insert(fileFd);
+            }
+        }
+        else if (currentRead.size() == client_data.openFiles[fileFd].size)
+        {
+            // nothing more to read
+            client_data.openFiles[fileFd].finished = true;
+            client_data.openFiles[fileFd].content = currentRead;
+            _filesToRemove.insert(fileFd);
+        }
+        else
+        {
+            client_data.openFiles[fileFd].content = currentRead;
+        }
+    }
+}
+
+std::string Server::readFromClientOrFile(int fd, std::string partialContent)
+{
+    char          buffer[BUFFER_SIZE];
+    const ssize_t bytesRead = read(fd, buffer, BUFFER_SIZE);
+
+    if (bytesRead > 0)
+    {
+        partialContent.append(buffer, static_cast<size_t>(bytesRead));
+        return partialContent;
+    }
+    else if (bytesRead == 0)
+        return ""; // Finished reading file
+    else
+        throw std::runtime_error("Error reading from file/client " + std::to_string(fd) + ": " + strerror(errno));
+}
+
+void Server::respondToClients()
+{
+    for (int clientFd : _pollManager.getWritableClientSockets())
+    {
+        if (_clientData[clientFd].parsedRequest != nullptr)
+        {
+            try
+            {
+                respondToClient(clientFd);
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error writing to client " << clientFd << ": " << e.what() << '\n';
+                _clientsToRemove.insert(clientFd);
+            }
+        }
+    }
+}
+
+void Server::respondToClient(int clientFd)
+{
+    if (_clientData[clientFd].pendingResponse.response.empty())
+    {
+        _clientData[clientFd].parsedRequest->generateResponse(this, clientFd);
+        if (_clientData[clientFd].parsedRequest->fullResponseIsReady())
+            _clientData[clientFd].pendingResponse = {_clientData[clientFd].parsedRequest->getFullResponse(), 0};
+        else
+            return;
+    }
+    // std::cout << "Sending response to client: " << clientFd << ' ' << _clientData[clientFd] << '\n';
+    _clientData[clientFd].lastInteractionTime = std::chrono::steady_clock::now();
+    auto pendingResponse = writeResponseToClient(clientFd);
+    if (pendingResponse.response.size() == pendingResponse.sent)
+    {
+        std::cout << "Full response sent, switch back to listening for client: " << clientFd << ' ' << _clientData[clientFd] << std::endl;
+        if (_clientData[clientFd].parsedRequest->isCloseConnection())
+            _clientsToRemove.insert(clientFd);
+        _clientData[clientFd].pendingResponse = {};
+        _clientData[clientFd].parsedRequest = nullptr;
+        _pollManager.updateEvents(clientFd, POLLIN); // Start monitoring for reading new requests
+        _pollManager.removeEvents(clientFd, POLLOUT); // Stop monitoring for writing until new request arrives / new response is ready
+    }
+    else
+        _clientData[clientFd].pendingResponse = pendingResponse;
+}
+
+PendingResponse Server::writeResponseToClient(int clientFd)
+{
+    auto pendingResponses = _clientData[clientFd].pendingResponse;
+    auto responseRemainder = pendingResponses.response.c_str() + pendingResponses.sent;
+    auto remainingToSend = pendingResponses.response.size() - pendingResponses.sent;
+
+    // Send response back to client
+    ssize_t bytesWritten = write(clientFd, responseRemainder, remainingToSend);
+    if (bytesWritten < 0)
+        throw std::runtime_error("Error writing to client " + std::to_string(clientFd) + ": " + strerror(errno));
+    pendingResponses.sent += bytesWritten;
+    return pendingResponses;
+}
+
+void Server::writeToOpenFiles()
+{
+    for (int fileFd : _pollManager.getWritableFiles())
+    {
+        ClientData &client_data{getClientOfFile(fileFd)};
+        if (!client_data.openFiles[fileFd].finished)
+        {
+            try
+            {
+                // std::cout << "Writing to file: " << fileFd << '\n';
+                writeToFile(fileFd, client_data);
+                client_data.openFiles[fileFd].lastReadWriteTime = std::chrono::steady_clock::now();
+                if (client_data.openFiles[fileFd].content.empty())
+                {
+                    std::cout << "Finished writing to file " << fileFd << ". Closing it now." << '\n';
+                    client_data.openFiles[fileFd].finished = true;
+                    _filesToRemove.insert(fileFd);
+                }
+            }
+            catch (const std::runtime_error &e)
+            {
+                std::cerr << "Error writing to file " << fileFd << ": " << e.what() << '\n';
+                _filesToRemove.insert(fileFd);
+            }
+        }
+    }
+}
+
+void Server::writeToFile(int fileFd, ClientData &client_data)
+{
+    std::string pendingWrite = client_data.openFiles[fileFd].content;
+
+    ssize_t bytesWritten = write(fileFd, pendingWrite.c_str(), pendingWrite.size());
+    if (bytesWritten < 0)
+        throw std::runtime_error("Error writing to file " + std::to_string(fileFd) + ": " + strerror(errno));
+    client_data.openFiles[fileFd].content.erase(0, bytesWritten);
+}
+
+void Server::checkTimeoutConnectionsAndFiles()
+{
+    for (const auto &[clientFd, client_data] : _clientData)
+    {
+        auto elapsedSinceInteraction{std::chrono::steady_clock::now() - client_data.lastInteractionTime};
+        if (elapsedSinceInteraction >= std::chrono::seconds(CLIENT_TIMEOUT))
+        {
+            // TODO: add which client (maybe overload operator<<)
+            std::cout << "Client's last interaction time is longer than the specified timeout. Closing connection: " << clientFd << ' ' << client_data << '\n';
+            _clientsToRemove.insert(clientFd);
+        }
+        for (const auto &[fileFd, open_file] : client_data.openFiles)
+        {
+            auto elapsedSinceReadWrite{std::chrono::steady_clock::now() - open_file.lastReadWriteTime};
+            if (elapsedSinceReadWrite >= std::chrono::seconds(FILE_TIMEOUT))
+            {
+                // TODO: add which file (maybe overload operator<<)
+                std::cout << "File's last read/write time is longer than the specified timeout. Closing file: " << fileFd << '\n';
+                _filesToRemove.insert(fileFd);
+            }
+        }
+    }
+}
+
+void Server::closeConnections()
+{
+    for (int fd : _clientsToRemove)
+    {
+        _pollManager.removeSocket(fd);
+        closeClientFiles(fd);
+        _clientData.erase(fd);
+        close(fd);
+    }
+    _clientsToRemove.clear();
+}
+
+void Server::closeClientFiles(int client_fd)
+{
+    for (auto &[file_fd, file_data] : _clientData[client_fd].openFiles)
+    {
+        _pollManager.removeSocket(file_fd);
+        close(file_fd);
+    }
+}
+
+void Server::closeDoneFiles()
+{
+    for (int fd : _filesToRemove)
+    {
+        _pollManager.removeSocket(fd);
+        getClientOfFile(fd).openFiles.erase(fd);
+        _openFilesToClientMap.erase(fd);
+        close(fd);
+    }
+    _filesToRemove.clear();
+}
+
+ClientData &Server::getClientOfFile(int fileFd)
+{
+    return _clientData[_openFilesToClientMap[fileFd]];
+}
+
+const LocationConfig *Server::findLocationConfig(const std::string &uri, const ServerConfig *server_config) const
+{
+    if (!server_config)
+        return nullptr;
+
+    const auto &locations = server_config->getLocationsMap();
+
+    const LocationConfig *best_match = nullptr;
+    size_t                longest_match = 0;
+
+    for (const auto &[location_path, location_config] : locations)
+    {
+        if (uri.find(location_path) == 0 && location_path.length() > longest_match)
+        {
+            longest_match = location_path.length();
+            best_match = location_config.get();
+        }
+    }
+
+    return best_match;
+}
+
+std::unordered_map<int, ClientData> &Server::getClientDataMap()
+{
+    return _clientData;
+}
+
+PollManager &Server::getPollManager()
+{
+    return _pollManager;
+}
+
+std::unordered_map<int, int> &Server::getOpenFilesToClientMap()
+{
+    return _openFilesToClientMap;
+}
+
+std::ostream &operator<<(std::ostream &out, const ClientData &client_data)
+{
+    std::cout << "(connected on " << client_data.hostName << ":" << client_data.port << ")";
+    return out;
+}
+
+// std::ostream& operator<<(std::ostream& out, const OpenFile& file_data)
+// {
+//     //
+//     return out;
+// }
