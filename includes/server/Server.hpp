@@ -107,7 +107,7 @@ public:
     Server(Server &&src) = delete;
     Server &operator=(const Server &src) = delete;
     Server &operator=(Server &&src) = delete;
-    ~Server() = default;
+    ~Server();
 
     void fillPollManager();
     void run();

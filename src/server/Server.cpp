@@ -41,6 +41,15 @@ Server::Server(std::string configFileName)
         throw std::runtime_error("No valid listen addresses available. Cannot start server.");
 }
 
+Server::~Server()
+{
+    for (auto &[clientFd, clientData] : _clientData)
+    {
+        close(clientFd);
+    }
+    std::cout << "Server successfully stopped. Goodbye!" << '\n';
+}
+
 void Server::fillPollManager()
 {
     for (const auto &[fd, sockPtr] : _sockets)
@@ -94,7 +103,6 @@ void Server::run()
     }
     if (g_shutdownServer == 2)
         throw std::runtime_error("execve failure"); // only possible to reach in CGI child process
-    std::cout << "Server successfully stopped. Goodbye!" << '\n';
 }
 
 void Server::acceptNewConnections()
