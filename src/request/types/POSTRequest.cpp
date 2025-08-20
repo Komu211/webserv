@@ -75,8 +75,21 @@ void POSTRequest::generateResponse(Server *server, int clientFd)
     std::string contentType = foundHeaders->second;
     std::transform(contentType.begin(), contentType.end(), contentType.begin(), ::tolower);
 
+
+    std::string baseContentType = contentType;
+    // Remove any parameters (e.g., charset) from content type
+    std::size_t semicolonPos = baseContentType.find(';');
+    if (semicolonPos != std::string::npos)
+        baseContentType = baseContentType.substr(0, semicolonPos);
+    
+    // Check if the MIME type is known in our MimeTypes class
+    std::string_view extension = MimeTypes::getExtension(baseContentType);
+    std::string extStr{extension};
+
     if (contentType.find("multipart/form-data") != std::string::npos)
         return handleMultipart();
+    else if (!extension.empty())
+        return handleNonMultipart(extStr);
     else
         return errorResponse(415); // Unsupported Media Type
 }
@@ -105,6 +118,18 @@ void POSTRequest::handleMultipart()
         _fullResponse = response.write();
         _responseState = READY;
     }
+}
+
+void POSTRequest::handleNonMultipart(const std::string& extension)
+{
+    // std::cout << "Handling non multipart form data" << std::endl;
+
+    POSTRequest::MultipartPart part;
+
+    part.filename = "FILE_UPLOAD" + extension;
+    part.content = _data.body;
+
+    return handleFileUpload({&part});
 }
 
 std::vector<POSTRequest::MultipartPart> POSTRequest::parseMultipartFormData()
