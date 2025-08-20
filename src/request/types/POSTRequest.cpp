@@ -347,11 +347,11 @@ void POSTRequest::handleFileUpload(const std::vector<MultipartPart *> &fileParts
     }
 }
 
-std::vector<POSTRequest::MultipartPart *> POSTRequest::findAllUploadFileParts(const std::vector<MultipartPart> &parts)
+std::vector<POSTRequest::MultipartPart *> POSTRequest::findAllUploadFileParts(std::vector<MultipartPart> &parts)
 {
     std::vector<MultipartPart *> fileParts;
 
-    for (auto &part : const_cast<std::vector<MultipartPart> &>(parts))
+    for (auto &part : parts)
     {
         if (!part.filename.empty())
         {
