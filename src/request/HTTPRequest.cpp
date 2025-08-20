@@ -39,7 +39,6 @@ void HTTPRequest::errorResponse(int errorCode)
         std::string error_file{_effective_config->getErrorPagesMap().at(errorCode)};
 
         std::filesystem::path errorPagePath{_effective_config->getRoot()};
-        errorPagePath /= getURInoLeadingSlash();
         errorPagePath /= error_file; // errorPagePath = root + current location + error_file
 
         openFileSetHeaders(errorPagePath);
