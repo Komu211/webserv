@@ -26,7 +26,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (argc != 2)
+    if (argc != 1 && argc != 2)
     {
         std::cout << "Usage: ./webserv <configuration file>" << '\n';
         return 1;
@@ -36,7 +36,14 @@ int main(int argc, char **argv)
     {
         std::cout << "Hello from the wondrous webserv!" << '\n';
 
-        Server server{argv[1]};
+        std::string configPath;
+
+        if (argc == 1)
+            configPath = "./configs/default-site.conf";
+        else
+            configPath = argv[1];
+
+        Server server{configPath};
         server.fillPollManager();
         server.run();
     }
