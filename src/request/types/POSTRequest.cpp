@@ -99,6 +99,10 @@ void POSTRequest::handleMultipart()
     }
     else
     {
+        // No file parts found in multipart data - generate success response
+        std::string responseMessage = "Multipart form data received without files to upload.\n";
+        ResponseWriter response(200, {{"Content-Type", "text/plain"}}, responseMessage);
+        _fullResponse = response.write();
         _responseState = READY;
     }
 }
